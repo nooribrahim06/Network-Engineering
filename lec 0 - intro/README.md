@@ -3,6 +3,18 @@
 
 ---
 
+> [!IMPORTANT]
+> **This is an overview — not a deep dive.**
+>
+> Everything in this lecture will be covered in detail later in the course.
+> For now, you do **not** need to fully understand every single word.
+> You do **not** need to memorize commands, code, or definitions.
+>
+> Just read through it. Get the big picture. See how the pieces connect.
+> That's the only goal of Lecture 00.
+
+---
+
 # Part 1 — Foundations
 
 ## 1. What Is a Network?
