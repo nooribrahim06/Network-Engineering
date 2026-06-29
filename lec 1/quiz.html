@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lec 02 Quiz — Networking Fundamentals</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0d1117;
+    --surface:   #161b22;
+    --border:    #30363d;
+    --accent:    #58a6ff;
+    --correct:   #3fb950;
+    --wrong:     #f85149;
+    --warn:      #d29922;
+    --text:      #e6edf3;
+    --muted:     #8b949e;
+    --mono:      'JetBrains Mono', monospace;
+    --sans:      'Inter', sans-serif;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2rem 1rem 4rem;
+  }
+
+  /* ── HEADER ── */
+  header {
+    width: 100%;
+    max-width: 760px;
+    margin-bottom: 2rem;
+  }
+
+  .course-tag {
+    font-family: var(--mono);
+    font-size: .7rem;
+    color: var(--accent);
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    margin-bottom: .5rem;
+  }
+
+  h1 {
+    font-family: var(--mono);
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 1.2rem;
+  }
+
+  /* ── TRANSMISSION BAR ── */
+  .tx-bar-wrap {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+  }
+
+  .tx-label {
+    font-family: var(--mono);
+    font-size: .68rem;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  .tx-track {
+    flex: 1;
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .tx-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--accent), #79c0ff);
+    border-radius: 3px;
+    transition: width .5s cubic-bezier(.4,0,.2,1);
+  }
+
+  .tx-count {
+    font-family: var(--mono);
+    font-size: .68rem;
+    color: var(--muted);
+    white-space: nowrap;
+    min-width: 3.5rem;
+    text-align: right;
+  }
+
+  /* ── CARD ── */
+  .card {
+    width: 100%;
+    max-width: 760px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    padding: 1rem 1.4rem;
+    border-bottom: 1px solid var(--border);
+    background: #0d1117;
+  }
+
+  .q-index {
+    font-family: var(--mono);
+    font-size: .72rem;
+    color: var(--accent);
+    background: rgba(88,166,255,.1);
+    border: 1px solid rgba(88,166,255,.25);
+    padding: .2rem .55rem;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+
+  .q-category {
+    font-family: var(--mono);
+    font-size: .68rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .08em;
+  }
+
+  .q-difficulty {
+    margin-left: auto;
+    font-family: var(--mono);
+    font-size: .65rem;
+    padding: .18rem .5rem;
+    border-radius: 4px;
+    border: 1px solid;
+  }
+
+  .diff-medium { color: var(--warn); border-color: rgba(210,153,34,.35); background: rgba(210,153,34,.08); }
+  .diff-hard   { color: var(--wrong); border-color: rgba(248,81,73,.35); background: rgba(248,81,73,.08); }
+  .diff-expert { color: #bc8cff; border-color: rgba(188,140,255,.35); background: rgba(188,140,255,.08); }
+
+  .q-body {
+    padding: 1.5rem 1.4rem 1rem;
+  }
+
+  .question-text {
+    font-size: 1rem;
+    line-height: 1.65;
+    color: var(--text);
+    margin-bottom: 1.4rem;
+  }
+
+  .question-text code {
+    font-family: var(--mono);
+    font-size: .85em;
+    background: rgba(88,166,255,.1);
+    color: #79c0ff;
+    padding: .1em .35em;
+    border-radius: 3px;
+  }
+
+  /* ── OPTIONS ── */
+  .options {
+    display: flex;
+    flex-direction: column;
+    gap: .6rem;
+  }
+
+  .option {
+    display: flex;
+    align-items: flex-start;
+    gap: .85rem;
+    padding: .85rem 1rem;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    cursor: pointer;
+    text-align: left;
+    transition: border-color .15s, background .15s;
+    width: 100%;
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: .92rem;
+    line-height: 1.5;
+  }
+
+  .option:hover:not(:disabled) {
+    border-color: var(--accent);
+    background: rgba(88,166,255,.05);
+  }
+
+  .option-key {
+    font-family: var(--mono);
+    font-size: .75rem;
+    color: var(--accent);
+    background: rgba(88,166,255,.1);
+    border: 1px solid rgba(88,166,255,.2);
+    border-radius: 4px;
+    padding: .15rem .4rem;
+    min-width: 1.8rem;
+    text-align: center;
+    flex-shrink: 0;
+    margin-top: .05rem;
+  }
+
+  .option-text code {
+    font-family: var(--mono);
+    font-size: .83em;
+    background: rgba(255,255,255,.07);
+    padding: .1em .3em;
+    border-radius: 3px;
+  }
+
+  /* answered states */
+  .option.correct {
+    border-color: var(--correct);
+    background: rgba(63,185,80,.08);
+  }
+  .option.correct .option-key {
+    background: var(--correct);
+    color: #0d1117;
+    border-color: var(--correct);
+  }
+
+  .option.wrong {
+    border-color: var(--wrong);
+    background: rgba(248,81,73,.08);
+  }
+  .option.wrong .option-key {
+    background: var(--wrong);
+    color: #fff;
+    border-color: var(--wrong);
+  }
+
+  .option.dimmed {
+    opacity: .4;
+  }
+
+  .option:disabled { cursor: default; }
+
+  /* ── EXPLANATION ── */
+  .explanation {
+    margin: 1rem 1.4rem 0;
+    border-radius: 7px;
+    overflow: hidden;
+    max-height: 0;
+    opacity: 0;
+    transition: max-height .45s cubic-bezier(.4,0,.2,1), opacity .35s ease, margin .3s;
+  }
+
+  .explanation.visible {
+    max-height: 800px;
+    opacity: 1;
+  }
+
+  .exp-inner {
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    overflow: hidden;
+  }
+
+  .exp-verdict {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    padding: .7rem 1rem;
+    font-family: var(--mono);
+    font-size: .78rem;
+    font-weight: 600;
+    letter-spacing: .04em;
+  }
+
+  .exp-verdict.v-correct { background: rgba(63,185,80,.12); color: var(--correct); border-bottom: 1px solid rgba(63,185,80,.2); }
+  .exp-verdict.v-wrong   { background: rgba(248,81,73,.12);  color: var(--wrong);   border-bottom: 1px solid rgba(248,81,73,.2); }
+
+  .exp-body {
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: .85rem;
+  }
+
+  .exp-section-label {
+    font-family: var(--mono);
+    font-size: .65rem;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    margin-bottom: .3rem;
+  }
+
+  .label-wrong   { color: var(--wrong); }
+  .label-correct { color: var(--correct); }
+  .label-deep    { color: var(--accent); }
+
+  .exp-section p {
+    font-size: .88rem;
+    line-height: 1.65;
+    color: #c9d1d9;
+  }
+
+  .exp-section p code {
+    font-family: var(--mono);
+    font-size: .82em;
+    background: rgba(255,255,255,.07);
+    padding: .1em .3em;
+    border-radius: 3px;
+    color: #79c0ff;
+  }
+
+  .exp-section + .exp-section {
+    border-top: 1px solid var(--border);
+    padding-top: .85rem;
+  }
+
+  /* ── NAV ── */
+  .card-footer {
+    display: flex;
+    justify-content: flex-end;
+    padding: 1rem 1.4rem 1.4rem;
+  }
+
+  .btn-next {
+    font-family: var(--mono);
+    font-size: .82rem;
+    font-weight: 600;
+    color: #0d1117;
+    background: var(--accent);
+    border: none;
+    border-radius: 6px;
+    padding: .6rem 1.4rem;
+    cursor: pointer;
+    opacity: 0;
+    transform: translateY(4px);
+    transition: opacity .25s, transform .25s, background .15s;
+    pointer-events: none;
+  }
+
+  .btn-next.visible {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: all;
+  }
+
+  .btn-next:hover { background: #79c0ff; }
+
+  /* ── SCORE SCREEN ── */
+  .score-screen {
+    width: 100%;
+    max-width: 760px;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+    text-align: center;
+  }
+
+  .score-screen.visible { display: flex; }
+
+  .score-ring {
+    width: 130px;
+    height: 130px;
+    position: relative;
+  }
+
+  .score-ring svg { transform: rotate(-90deg); }
+
+  .score-ring-label {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .score-pct {
+    font-family: var(--mono);
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .score-sub {
+    font-family: var(--mono);
+    font-size: .65rem;
+    color: var(--muted);
+  }
+
+  .score-title {
+    font-family: var(--mono);
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .score-breakdown {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: .75rem;
+    width: 100%;
+  }
+
+  .score-stat {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem;
+  }
+
+  .score-stat-val {
+    font-family: var(--mono);
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin-bottom: .25rem;
+  }
+
+  .score-stat-lbl {
+    font-size: .75rem;
+    color: var(--muted);
+  }
+
+  .c-correct { color: var(--correct); }
+  .c-wrong   { color: var(--wrong); }
+  .c-accent  { color: var(--accent); }
+
+  .btn-retry {
+    font-family: var(--mono);
+    font-size: .82rem;
+    font-weight: 600;
+    color: #0d1117;
+    background: var(--accent);
+    border: none;
+    border-radius: 6px;
+    padding: .7rem 2rem;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .btn-retry:hover { background: #79c0ff; }
+
+  .grade-msg {
+    font-size: .9rem;
+    color: var(--muted);
+    max-width: 480px;
+    line-height: 1.6;
+  }
+
+  @media (max-width: 500px) {
+    .score-breakdown { grid-template-columns: 1fr 1fr; }
+    h1 { font-size: 1rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="course-tag">Network Engineering Fundamentals · Lecture 02</div>
+  <h1>Quiz — OSI Model, Client-Server & Host Communication</h1>
+  <div class="tx-bar-wrap">
+    <span class="tx-label">TX</span>
+    <div class="tx-track"><div class="tx-fill" id="txFill"></div></div>
+    <span class="tx-count" id="txCount">0 / 15</span>
+  </div>
+</header>
+
+<!-- Question card -->
+<div class="card" id="quizCard">
+  <div class="card-header">
+    <span class="q-index" id="qIndex">Q.01</span>
+    <span class="q-category" id="qCategory"></span>
+    <span class="q-difficulty" id="qDiff"></span>
+  </div>
+  <div class="q-body">
+    <p class="question-text" id="qText"></p>
+    <div class="options" id="optionsWrap"></div>
+    <div class="explanation" id="explanation">
+      <div class="exp-inner">
+        <div class="exp-verdict" id="expVerdict"></div>
+        <div class="exp-body" id="expBody"></div>
+      </div>
+    </div>
+  </div>
+  <div class="card-footer">
+    <button class="btn-next" id="btnNext">next packet →</button>
+  </div>
+</div>
+
+<!-- Score screen -->
+<div class="score-screen" id="scoreScreen">
+  <div class="score-ring">
+    <svg width="130" height="130" viewBox="0 0 130 130">
+      <circle cx="65" cy="65" r="56" fill="none" stroke="#30363d" stroke-width="10"/>
+      <circle cx="65" cy="65" r="56" fill="none" stroke-width="10"
+        stroke-linecap="round" id="scoreArc"
+        stroke-dasharray="351.86" stroke-dashoffset="351.86"
+        style="transition:stroke-dashoffset 1s cubic-bezier(.4,0,.2,1)"/>
+    </svg>
+    <div class="score-ring-label">
+      <span class="score-pct" id="scorePct">0%</span>
+      <span class="score-sub">score</span>
+    </div>
+  </div>
+  <div class="score-title" id="scoreTitle"></div>
+  <p class="grade-msg" id="gradeMsg"></p>
+  <div class="score-breakdown">
+    <div class="score-stat">
+      <div class="score-stat-val c-correct" id="statCorrect">0</div>
+      <div class="score-stat-lbl">correct</div>
+    </div>
+    <div class="score-stat">
+      <div class="score-stat-val c-wrong" id="statWrong">0</div>
+      <div class="score-stat-lbl">wrong</div>
+    </div>
+    <div class="score-stat">
+      <div class="score-stat-val c-accent" id="statPct">0%</div>
+      <div class="score-stat-lbl">accuracy</div>
+    </div>
+  </div>
+  <button class="btn-retry" onclick="restart()">↺ retry</button>
+</div>
+
+<script>
+const KEYS = ['A','B','C','D'];
+
+const questions = [
+  {
+    category: 'OSI Model',
+    difficulty: 'medium',
+    text: 'A Layer 4 firewall is inspecting traffic. Which of the following fields can it <em>definitively</em> read without any special configuration?',
+    options: [
+      'The HTTP URL path (e.g. <code>/api/users</code>)',
+      'The TLS certificate Subject Name',
+      'The destination port and source IP address',
+      'The JSON body of a POST request'
+    ],
+    correct: 2,
+    explanation: {
+      wrong: 'Options A, B, and D all live in the encrypted payload. A Layer 4 firewall processes up to the Transport layer — it sees IP headers (L3) and TCP/UDP headers (L4). The HTTP path, TLS certificate body, and JSON payload are all inside the TLS-encrypted application data, which is completely opaque to L4.',
+      right: 'The destination port is a TCP header field (L4) and the source IP is an IP header field (L3). Both are always transmitted in plaintext because routers and firewalls <em>need</em> them to route and filter traffic. No decryption is needed or possible here.',
+      deep: 'This is precisely why L7 load balancers (nginx, HAProxy in HTTP mode, AWS ALB) must <em>terminate</em> the TLS connection — they become the TLS endpoint, decrypt the payload, inspect the URL/headers, make a routing decision, then re-encrypt to the backend. This is slower and requires the load balancer to hold your private key.'
+    }
+  },
+  {
+    category: 'OSI Model',
+    difficulty: 'hard',
+    text: 'You are building a service mesh sidecar proxy (like Linkerd or Envoy). You want to perform <strong>connection pooling</strong> — reusing existing TCP connections to the upstream service — without inspecting HTTP headers. At which OSI layer does this feature primarily operate?',
+    options: [
+      'Layer 7 — Application',
+      'Layer 6 — Presentation',
+      'Layer 5 — Session',
+      'Layer 3 — Network'
+    ],
+    correct: 2,
+    explanation: {
+      wrong: 'Layer 7 would require parsing HTTP, gRPC, or another application protocol — connection pooling doesn\'t need that. Layer 6 is about serialization/encoding. Layer 3 has no concept of connections or ports, only IP addresses.',
+      right: 'Connection pooling is a Session layer (L5) concern. It manages the lifecycle of TCP connections — establishing them, keeping them alive, multiplexing requests over them — without needing to understand what application protocol is flowing through. Linkerd\'s L5 proxying is a real-world example: it pools connections based purely on session state.',
+      deep: 'This is also why the TCP/IP model\'s collapsing of L5/L6/L7 into a single "Application" layer obscures real architectural distinctions. Envoy and Linkerd are explicitly described as "L5 proxies" in their own docs precisely because this distinction matters when you\'re not doing HTTP-level routing.'
+    }
+  },
+  {
+    category: 'Host-to-Host',
+    difficulty: 'hard',
+    text: 'Host A (192.168.1.10/24) wants to send a packet to Host B (192.168.1.200/24). Both are on the same subnet. What happens at the data link layer before the frame is transmitted?',
+    options: [
+      'Host A sends the frame directly with the router\'s MAC as DMAC',
+      'Host A broadcasts an ARP request to resolve Host B\'s MAC address, then unicasts the frame',
+      'Host A looks up Host B\'s MAC in the routing table',
+      'Host A sends a DNS query to resolve Host B\'s layer-2 address'
+    ],
+    correct: 1,
+    explanation: {
+      wrong: 'The router\'s MAC is the DMAC only when the destination is on a <em>different</em> subnet — in that case the packet goes to the default gateway. Routing tables are L3 constructs and contain IP→next-hop mappings, not IP→MAC mappings. DNS resolves domain names to IP addresses, not MAC addresses.',
+      right: 'Since both hosts share the same /24 subnet, Host A applies the subnet mask and determines the destination is local. It then uses ARP (Address Resolution Protocol) to broadcast "Who has 192.168.1.200? Tell 192.168.1.10" on the L2 segment. Host B responds with its MAC. Host A caches this in its ARP table and sends the frame directly.',
+      deep: 'Run <code>arp -a</code> on any Linux/macOS machine to see your local ARP cache — you\'ll see IP→MAC mappings for every host your machine has recently communicated with on the local segment. ARP entries expire (typically 20 minutes on Linux) and are refreshed on next communication.'
+    }
+  },
+  {
+    category: 'Host-to-Host',
+    difficulty: 'expert',
+    text: 'A packet travels from 10.0.1.5 to 10.0.2.8 through a single router. Which statement correctly describes what changes and what stays the same at each hop?',
+    options: [
+      'Both the source/destination IP and source/destination MAC change at the router',
+      'The source IP changes to the router\'s IP; the MACs change at each hop',
+      'The IP addresses remain unchanged end-to-end; the MAC addresses are rewritten at each router hop',
+      'Only the destination MAC changes; the source MAC and both IPs stay constant'
+    ],
+    correct: 2,
+    explanation: {
+      wrong: 'The source IP never changes to the router\'s IP in normal forwarding (that would be NAT, a different mechanism). The router does not rewrite IP addresses in plain IP forwarding — it only decrements the TTL. Only one MAC changes per hop (both source and destination MACs are rewritten).',
+      right: 'IP addresses (L3) are end-to-end identifiers — they remain the source and destination for the entire journey. MAC addresses (L2) are hop-by-hop identifiers — valid only within one network segment. At the router: the incoming frame\'s DMAC is the router\'s own MAC (so it accepts it); the outgoing frame\'s SMAC is the router\'s outbound interface MAC, and DMAC is the next-hop\'s MAC (resolved via ARP on the outbound segment).',
+      deep: 'This is the fundamental distinction between L2 and L3: L3 is the postal address on the letter (stays the same), L2 is the courier\'s hand-off tag (replaced at every sorting facility). MPLS (used by ISPs) adds a third kind of label between L2 and L3 that changes at each LSR hop — that\'s why it\'s sometimes called "Layer 2.5".'
+    }
+  },
+  {
+    category: 'Ports & Transport',
+    difficulty: 'medium',
+    text: 'Your Node.js backend is under extreme load and starts failing to make outbound HTTP requests to a third-party API. Logs show <code>EADDRNOTAVAIL</code> errors. What is the most likely root cause?',
+    options: [
+      'The third-party API\'s port 443 is blocked by a firewall',
+      'The server\'s ephemeral port range is exhausted',
+      'The server\'s IP address has been rate-limited',
+      'The DNS resolver cannot reach the third-party domain'
+    ],
+    correct: 1,
+    explanation: {
+      wrong: 'A blocked port 443 would produce <code>ECONNREFUSED</code> or <code>ETIMEDOUT</code>. Rate limiting is an L7 application-level response (usually HTTP 429) and wouldn\'t produce an <code>EADDRNOTAVAIL</code> at the socket level. DNS failure produces <code>ENOTFOUND</code>.',
+      right: '<code>EADDRNOTAVAIL</code> means "cannot assign requested address" — the OS tried to bind a new ephemeral source port for the outbound TCP connection but had none available. The default Linux ephemeral port range is 32768–60999 (~28,000 ports). Under high concurrency with short-lived connections in TIME_WAIT state, this range fills up.',
+      deep: 'Fixes: (1) Tune <code>/proc/sys/net/ipv4/ip_local_port_range</code> to expand the range to 1024–65535. (2) Enable <code>SO_REUSEADDR</code> or <code>tcp_tw_reuse</code> to reuse TIME_WAIT sockets. (3) The real fix: use an HTTP connection pool (e.g. pass an <code>http.Agent</code> with <code>keepAlive: true</code> to axios/got) so you reuse TCP connections and avoid opening new ones per request.'
+    }
+  },
+  {
+    category: 'Client-Server',
+    difficulty: 'medium',
+    text: 'Which of the following correctly describes the advantage of client-server architecture over a monolithic single-machine model in terms of <strong>dependency management</strong>?',
+    options: [
+      'The client must install all dependencies including database drivers',
+      'Each server independently manages its dependencies; the client only needs to make network calls',
+      'Dependencies are eliminated entirely because the server handles all computation',
+      'The client and server share a single dependency manifest to stay synchronized'
+    ],
+    correct: 1,
+    explanation: {
+      wrong: 'In client-server, the client is intentionally kept thin — installing DB drivers on every client defeats the purpose. Dependencies are not eliminated; they\'re just centralized. There is no shared dependency manifest in the standard model — that would re-couple client and server.',
+      right: 'The server owns all heavy dependencies (DB drivers, message queue clients, ML model weights, etc.). The client only needs to speak the network protocol (HTTP, gRPC, WebSocket). This means you can update server dependencies (e.g. switch from pg to pgbouncer) without touching any client code.',
+      deep: 'This principle scales to microservices: each service owns its own dependencies and can upgrade them independently. A Python ML inference service can run numpy/PyTorch without the Go API gateway knowing or caring. This is the same decomposition principle, just applied recursively.'
+    }
+  },
+  {
+    category: 'OSI Model',
+    difficulty: 'hard',
+    text: 'An ISP wants to block traffic to a specific streaming service. The streaming service uses HTTPS and has many IP addresses. Which approach can the ISP realistically use with a <strong>transparent proxy</strong> (one clients have not installed a custom certificate for)?',
+    options: [
+      'Inspect the encrypted HTTP Host header and block matching requests',
+      'Block specific destination IP addresses and destination port 443',
+      'Decrypt the TLS payload and match the URL path',
+      'Forge a TLS certificate for the service and intercept all connections'
+    ],
+    correct: 1,
+    explanation: {
+      wrong: 'The HTTP Host header is inside the encrypted TLS payload — a transparent proxy cannot read it without the server\'s private key. Decrypting TLS without the private key is computationally infeasible (that\'s the point of asymmetric encryption). Forging a TLS certificate would fail because clients\' browsers would reject it (certificate not trusted by any installed CA).',
+      right: 'A transparent proxy operates at L3/L4 — it can see IP addresses and ports, nothing more. Blocking by destination IP + port 443 is the realistic approach. This is exactly why streaming services use CDNs with shared IPs across many domains — blocking the IP also blocks hundreds of unrelated sites, raising the political cost of censorship.',
+      deep: 'Kazakhstan\'s 2019 attempt to mandate a government root CA is the notable counterexample — it would have enabled option D at scale. Browsers (Chrome, Firefox, Safari) responded by hard-coding rejection of that CA. The TLS ecosystem\'s CA pinning and Certificate Transparency logs exist partly to prevent exactly this attack.'
+    }
+  },
+  {
+    category: 'Ports & Transport',
+    difficulty: 'medium',
+    text: 'A backend server is listening for connections. What is the correct sequence of events when a client initiates a TCP connection to port 443?',
+    options: [
+      'Client SYN → Server SYN → Client ACK → Connection established',
+      'Client SYN → Server SYN-ACK → Client ACK → Connection established',
+      'Client ACK → Server SYN-ACK → Client SYN → Connection established',
+      'Client SYN-ACK → Server SYN → Client ACK → Connection established'
+    ],
+    correct: 1,
+    explanation: {
+      wrong: 'The server never sends a bare SYN during connection establishment — SYN is only sent to initiate. The server\'s response to a SYN is always SYN-ACK (simultaneously acknowledging the client\'s SYN and sending its own SYN). The ACK always comes last from the client.',
+      right: 'The TCP 3-way handshake: (1) Client sends SYN with a random initial sequence number (ISN). (2) Server responds SYN-ACK: acknowledges client\'s ISN+1, sends its own ISN. (3) Client sends ACK acknowledging server\'s ISN+1. After step 3, the connection is ESTABLISHED and application data can flow.',
+      deep: 'The two ISNs establish bidirectional sequence tracking — TCP is a full-duplex byte stream. Each direction has its own sequence counter. SYN and FIN each consume one sequence number (as if they were 1 byte of data), which is why the ACK for a SYN is always ISN+1, not ISN.'
+    }
+  },
+  {
+    category: 'Host-to-Host',
+    difficulty: 'hard',
+    text: 'Host A has IP <code>172.16.4.10/22</code>. It wants to send a packet to <code>172.16.5.20</code>. Should it send the packet directly (same subnet) or via its default gateway?',
+    options: [
+      'Directly — both addresses start with 172.16, so they\'re on the same network',
+      'Via the default gateway — /22 means only the first 22 bits define the network, and these two IPs have different bit 23',
+      'Directly — /22 covers 172.16.4.0 through 172.16.7.255, and 172.16.5.20 falls within that range',
+      'Via the default gateway — different third octets always mean different subnets'
+    ],
+    correct: 2,
+    explanation: {
+      wrong: 'Sharing "172.16" is a /16 check, not /22. The fourth option is a common misconception — CIDR doesn\'t care about octet boundaries. /22 spans 4 × /24 blocks, so third-octet differences don\'t automatically mean different subnets.',
+      right: '/22 means the first 22 bits are the network portion. 172.16.4.0/22 covers addresses from 172.16.4.0 to 172.16.7.255 (2^10 = 1024 addresses). 172.16.5.20 in binary: the first 22 bits match 172.16.4.0/22\'s network bits. So 172.16.5.20 is on the same /22 subnet — Host A sends directly after an ARP request.',
+      deep: 'Quick /22 check: 172.16.4.0 in binary for the relevant bits — the 4 in octet 3 is 00000100, the 5 is 00000101. /22 means bits 1-22 are network. Octet 3\'s bits 17-22 for .4 = 000001, for .5 = 000001 (only bit 23, which is the last bit of octet 3, differs — but bit 23 is a host bit in /22). Same network.'
+    }
+  },
+  {
+    category: 'Socket Binding',
+    difficulty: 'medium',
+    text: 'Your Node.js API server is deployed on an EC2 instance. It\'s configured to listen on <code>127.0.0.1:3000</code>. A load balancer in the same VPC tries to reach it and gets <code>Connection refused</code>. What is the issue and how do you fix it?',
+    options: [
+      'Port 3000 is blocked by the EC2 security group; open inbound port 3000',
+      'The server is bound to the loopback interface; change the bind address to <code>0.0.0.0</code>',
+      'The load balancer needs to connect to port 80, not 3000; add a port redirect',
+      'The VPC route table is missing an entry for the server\'s subnet'
+    ],
+    correct: 1,
+    explanation: {
+      wrong: 'A security group blocks external traffic but the traffic never even reaches the network stack if the process is bound to loopback — so opening port 3000 in the security group would not help. Port 80 vs 3000 is irrelevant here. VPC route tables operate at L3 between subnets, not within a process\'s bind address.',
+      right: 'Binding to <code>127.0.0.1</code> tells the kernel: "only accept connections arriving on the loopback interface (lo)." The load balancer\'s traffic arrives on the EC2\'s eth0 interface (with its private VPC IP), which the kernel rejects before the process even sees it — hence "Connection refused." Changing to <code>0.0.0.0</code> tells the kernel to accept on all interfaces.',
+      deep: 'A common and secure production pattern: bind your app to <code>127.0.0.1:3000</code> and put nginx in front also on the same machine, listening on <code>0.0.0.0:80/443</code>. nginx proxies to localhost:3000. Your app is never directly exposed — only nginx is. This way even if the security group is misconfigured, the app cannot be reached directly from the internet.'
+    }
+  },
+  {
+    category: 'OSI Model',
+    difficulty: 'expert',
+    text: 'You\'re debugging a production issue. A client\'s HTTP/2 request is reaching your nginx reverse proxy (L7 LB), but nginx cannot establish a connection to the backend server. The backend <em>is</em> running. Wireshark on the backend shows the SYN arriving but no SYN-ACK being sent. What is the most likely cause?',
+    options: [
+      'The backend\'s HTTP/2 implementation is incompatible with nginx',
+      'The backend\'s listen backlog is full — the kernel is silently dropping SYNs',
+      'nginx is not correctly forwarding the original client IP in X-Forwarded-For',
+      'The TLS certificate on the backend has expired'
+    ],
+    correct: 1,
+    explanation: {
+      wrong: 'HTTP/2 compatibility would show up after the TCP connection is established (at L7), not before. <code>X-Forwarded-For</code> is a header added to the HTTP request — it\'s irrelevant to the TCP handshake. An expired TLS cert would also only matter after TCP connects.',
+      right: 'The TCP listen backlog is a kernel queue of pending connections waiting to be <code>accept()</code>-ed by the application. If the app is too slow to call <code>accept()</code> (e.g. blocked, single-threaded, overloaded) and the queue fills, the kernel drops incoming SYNs — or in some configurations sends RST. Wireshark sees the SYN arrive but the kernel never sends SYN-ACK. The connection is dropped at L4 before the app knows about it.',
+      deep: 'In Node.js, the backlog is set via <code>server.listen(port, host, backlog)</code> (default 511). In Linux, the effective backlog is <code>min(backlog, net.core.somaxconn)</code>. Under high load, increase <code>somaxconn</code> (<code>sysctl -w net.core.somaxconn=65535</code>) and ensure your event loop is not blocking. SYN cookies (<code>tcp_syncookies=1</code>) help against SYN flood but won\'t help here since the issue is accept() rate, not flood.'
+    }
+  },
+  {
+    category: 'Client-Server / RPC',
+    difficulty: 'medium',
+    text: 'Which statement best describes the relationship between REST, gRPC, and the concept of Remote Procedure Call?',
+    options: [
+      'gRPC is an RPC framework; REST is not RPC because it uses HTTP verbs instead of function names',
+      'Both REST and gRPC are implementations of the RPC concept — they differ in protocol, serialization format, and transport',
+      'REST replaced RPC in the 1990s; gRPC is a modern revival of the original RPC concept',
+      'RPC only refers to binary protocols; REST is excluded by definition'
+    ],
+    correct: 1,
+    explanation: {
+      wrong: 'The distinction between "HTTP verbs" and "function names" is a naming/style difference, not a conceptual one. REST\'s <code>POST /users</code> is functionally "call createUser on the server." REST did not replace RPC — it emerged as an architectural style layered on HTTP, which itself can carry RPC calls. RPC is not limited to binary protocols.',
+      right: 'RPC is the <em>concept</em>: invoke code on a remote machine as if it were local. REST, gRPC, GraphQL, SOAP, and even a raw HTTP POST are all implementations of this concept at different levels of abstraction. They differ in: transport (HTTP/1.1 vs HTTP/2), serialization (JSON vs Protocol Buffers), schema enforcement (none vs .proto), and streaming support.',
+      deep: 'The original 1970s RPC concept predates HTTP. Sun RPC (used in NFS) and CORBA are earlier implementations. gRPC is notable for adding bidirectional streaming, schema-first development, and first-class code generation. GraphQL adds a query language so clients specify exactly what data they need — reducing over-fetching, a common REST pain point.'
+    }
+  },
+  {
+    category: 'OSI Model',
+    difficulty: 'hard',
+    text: 'At which layer does <strong>serialization</strong> (converting a Python dict or JavaScript object into a byte stream) belong in the OSI model, and why is this distinction architecturally useful?',
+    options: [
+      'Layer 7 — because serialization is part of the application logic',
+      'Layer 4 — because serialization is needed before TCP can transmit data',
+      'Layer 6 — because encoding/decoding is conceptually separate from application semantics, enabling cross-language communication',
+      'Layer 3 — because IP needs a standardized byte format to route packets'
+    ],
+    correct: 2,
+    explanation: {
+      wrong: 'While serialization code typically lives in the application codebase, the OSI model separates the <em>concern</em> of encoding from the concern of <em>what to do with the data</em>. TCP (L4) receives opaque bytes — it doesn\'t care about serialization format. IP (L3) is further below and only sees raw byte payloads; routing has nothing to do with serialization.',
+      right: 'Layer 6 (Presentation) is explicitly responsible for data representation, encoding, and serialization. The architectural value: a JavaScript client can serialize to JSON; a Python server deserializes from JSON. The format (UTF-8 encoded JSON bytes) is the L6 contract. The application layer (L7) only cares about the semantic meaning of the deserialized object — not how it was encoded.',
+      deep: 'This is why Protocol Buffers, MessagePack, Avro, and Thrift are often called "Layer 6 protocols" — they define a cross-language, cross-platform encoding. The TCP/IP model\'s collapsing of L5/L6/L7 into "Application" loses this distinction, which is why engineers who work on serialization frameworks like to invoke the OSI model specifically.'
+    }
+  },
+  {
+    category: 'Host-to-Host',
+    difficulty: 'hard',
+    text: 'Why are MAC addresses unsuitable as the <em>sole</em> addressing mechanism for global internet routing, even though they are globally unique?',
+    options: [
+      'MAC addresses are only 48 bits and cannot address enough devices',
+      'MAC addresses lack hierarchical structure, so routers would need to maintain a full global table with no way to aggregate routes',
+      'MAC addresses are hardware-burned and cannot be changed, making dynamic routing impossible',
+      'MAC addresses are not included in TCP headers, so the transport layer cannot use them'
+    ],
+    correct: 1,
+    explanation: {
+      wrong: '48-bit addresses provide ~281 trillion unique values — addressing capacity is not the issue. MAC addresses <em>can</em> be changed (MAC spoofing is trivially easy), so hardware immutability isn\'t the fundamental problem. MAC addresses not being in TCP headers is a symptom of the real issue, not the cause.',
+      right: 'IP routing efficiency comes entirely from hierarchy: a router doesn\'t need to know about every individual IP — it knows that "all 10.0.0.0/8 addresses go left" and can aggregate millions of hosts into one routing table entry. MAC addresses have no such structure — a router would need one entry per device on Earth with no way to group them geographically. BGP (the internet\'s routing protocol) currently has ~900,000 prefix entries covering the entire internet precisely because of IP\'s hierarchical aggregation.',
+      deep: 'This is the database analogy: routing with MAC addresses is a full table scan on a 8-billion-row table with no index. IP routing is an indexed lookup on a table with ~900K entries. The "index" is the subnet prefix hierarchy. This is also why IPv6 address allocation is done by geography/ISP — to preserve aggregation and keep routing tables manageable.'
+    }
+  },
+  {
+    category: 'Full Stack',
+    difficulty: 'expert',
+    text: 'A client browser makes an HTTPS request to <code>api.example.com</code>. The request passes through: (1) the client\'s home router, (2) the ISP\'s network, (3) a CDN edge node, and (4) the origin backend server. At which point(s) can the HTTP request body be read in plaintext?',
+    options: [
+      'At the home router and ISP — they can decrypt traffic on their networks',
+      'Only at the CDN edge node and the origin backend server',
+      'Only at the origin backend server — TLS is end-to-end',
+      'At the CDN edge node only — the backend receives it re-encrypted'
+    ],
+    correct: 1,
+    explanation: {
+      wrong: 'The home router and ISP are transparent L3/L4 devices — they can see the destination IP and port 443, but the payload is encrypted with TLS keys they do not hold. They cannot decrypt it without the server\'s private key. The origin backend does receive the body, but it depends on whether the CDN terminates or passes through TLS.',
+      right: 'The CDN edge node <em>terminates</em> the TLS connection from the browser — it holds the TLS private key for api.example.com and decrypts the full request including the body. It can then cache, inspect, and route. It establishes a <em>separate</em> TLS connection to the origin backend, re-encrypting the body. Both the CDN and the origin can read plaintext. This is why CDNs must be fully trusted — they are a TLS man-in-the-middle by design.',
+      deep: 'This architecture is called "TLS offloading" or "TLS termination at the edge." The CDN-to-origin leg is sometimes called a "backend connection" and may use a different certificate. For extremely sensitive data, some organizations use end-to-end TLS (the CDN passes through without decrypting) — but then the CDN cannot cache, inspect WAF rules, or make L7 routing decisions. It becomes an L4 proxy instead. This is the fundamental tension in CDN architecture.'
+    }
+  }
+];
+
+let current = 0;
+let score = 0;
+let answered = false;
+
+function render() {
+  const q = questions[current];
+  answered = false;
+
+  document.getElementById('qIndex').textContent = `Q.${String(current+1).padStart(2,'0')}`;
+  document.getElementById('qCategory').textContent = q.category;
+
+  const diff = document.getElementById('qDiff');
+  diff.textContent = q.difficulty;
+  diff.className = 'q-difficulty diff-' + q.difficulty;
+
+  document.getElementById('qText').innerHTML = q.text;
+
+  const wrap = document.getElementById('optionsWrap');
+  wrap.innerHTML = '';
+  q.options.forEach((opt, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'option';
+    btn.innerHTML = `<span class="option-key">${KEYS[i]}</span><span class="option-text">${opt}</span>`;
+    btn.addEventListener('click', () => selectOption(i));
+    wrap.appendChild(btn);
+  });
+
+  // reset explanation
+  const exp = document.getElementById('explanation');
+  exp.classList.remove('visible');
+
+  // reset next button
+  const nxt = document.getElementById('btnNext');
+  nxt.classList.remove('visible');
+  nxt.textContent = current === questions.length - 1 ? 'view results →' : 'next packet →';
+
+  updateProgress();
+}
+
+function selectOption(chosen) {
+  if (answered) return;
+  answered = true;
+
+  const q = questions[current];
+  const opts = document.querySelectorAll('.option');
+  const isCorrect = chosen === q.correct;
+
+  if (isCorrect) score++;
+
+  opts.forEach((btn, i) => {
+    btn.disabled = true;
+    if (i === q.correct) {
+      btn.classList.add('correct');
+    } else if (i === chosen && !isCorrect) {
+      btn.classList.add('wrong');
+    } else {
+      btn.classList.add('dimmed');
+    }
+  });
+
+  // build explanation
+  const verdict = document.getElementById('expVerdict');
+  verdict.className = 'exp-verdict ' + (isCorrect ? 'v-correct' : 'v-wrong');
+  verdict.innerHTML = isCorrect
+    ? '✓ &nbsp;correct'
+    : `✗ &nbsp;incorrect — correct answer: ${KEYS[q.correct]}`;
+
+  const body = document.getElementById('expBody');
+  body.innerHTML = `
+    ${!isCorrect ? `
+    <div class="exp-section">
+      <div class="exp-section-label label-wrong">// why your answer is wrong</div>
+      <p>${q.explanation.wrong}</p>
+    </div>` : ''}
+    <div class="exp-section">
+      <div class="exp-section-label label-correct">// why the correct answer is right</div>
+      <p>${q.explanation.right}</p>
+    </div>
+    <div class="exp-section">
+      <div class="exp-section-label label-deep">// deeper context</div>
+      <p>${q.explanation.deep}</p>
+    </div>
+  `;
+
+  document.getElementById('explanation').classList.add('visible');
+  document.getElementById('btnNext').classList.add('visible');
+}
+
+function updateProgress() {
+  const pct = (current / questions.length) * 100;
+  document.getElementById('txFill').style.width = pct + '%';
+  document.getElementById('txCount').textContent = `${current} / ${questions.length}`;
+}
+
+document.getElementById('btnNext').addEventListener('click', () => {
+  current++;
+  if (current >= questions.length) {
+    showScore();
+  } else {
+    render();
+  }
+});
+
+function showScore() {
+  document.getElementById('quizCard').style.display = 'none';
+  const ss = document.getElementById('scoreScreen');
+  ss.classList.add('visible');
+
+  const pct = Math.round((score / questions.length) * 100);
+  const circumference = 351.86;
+  const offset = circumference - (circumference * pct / 100);
+
+  const arc = document.getElementById('scoreArc');
+  const color = pct >= 80 ? 'var(--correct)' : pct >= 60 ? 'var(--warn)' : 'var(--wrong)';
+  arc.style.stroke = color;
+  setTimeout(() => { arc.style.strokeDashoffset = offset; }, 100);
+
+  document.getElementById('scorePct').textContent = pct + '%';
+  document.getElementById('statCorrect').textContent = score;
+  document.getElementById('statWrong').textContent = questions.length - score;
+  document.getElementById('statPct').textContent = pct + '%';
+
+  document.getElementById('txFill').style.width = '100%';
+  document.getElementById('txCount').textContent = `${questions.length} / ${questions.length}`;
+
+  let title, msg;
+  if (pct === 100) {
+    title = 'Perfect transmission. 0 dropped packets.';
+    msg = 'You have a solid command of OSI layers, addressing, and transport mechanics. You\'re ready for the next lecture.';
+  } else if (pct >= 80) {
+    title = 'Strong signal. Minor packet loss.';
+    msg = 'Good grasp of the core concepts. Review the questions you missed — the deeper context sections contain the exam-level detail.';
+  } else if (pct >= 60) {
+    title = 'Degraded link. Retransmit recommended.';
+    msg = 'The fundamentals are there but some concepts need reinforcement. Focus on OSI layer responsibilities and the MAC vs IP distinction.';
+  } else {
+    title = 'Connection unstable. Full retransmission required.';
+    msg = 'Go back to the lecture notes — specifically the OSI layer table, the data flow diagrams, and the host-to-host section. Then retry.';
+  }
+
+  document.getElementById('scoreTitle').textContent = title;
+  document.getElementById('gradeMsg').textContent = msg;
+}
+
+function restart() {
+  current = 0;
+  score = 0;
+  document.getElementById('scoreScreen').classList.remove('visible');
+  document.getElementById('quizCard').style.display = '';
+  render();
+}
+
+// keyboard nav
+document.addEventListener('keydown', (e) => {
+  if (['a','b','c','d'].includes(e.key.toLowerCase()) && !answered) {
+    const idx = 'abcd'.indexOf(e.key.toLowerCase());
+    const opts = document.querySelectorAll('.option');
+    if (opts[idx]) opts[idx].click();
+  }
+  if (e.key === 'Enter' || e.key === 'ArrowRight') {
+    const nxt = document.getElementById('btnNext');
+    if (nxt.classList.contains('visible')) nxt.click();
+  }
+});
+
+render();
+</script>
+</body>
+</html>
