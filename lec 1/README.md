@@ -8,83 +8,100 @@
 
 ---
 
+## Table of Contents
+
+- [Part 1 — Client-Server Architecture](#part-1--client-server-architecture)
+  - [1. Who Is the Client, Who Is the Server?](#1-who-is-the-client-who-is-the-server)
+  - [2. The Old Approach — One Big Machine](#2-the-old-approach--one-big-machine)
+  - [3. How We Separate Them](#3-how-we-separate-them)
+  - [4. Benefits of Separating Them](#4-benefits-of-separating-them)
+- [Part 2 — The OSI Model](#part-2--the-osi-model)
+  - [4b. Why Do Communication Models Exist?](#4b-why-do-communication-models-exist)
+  - [5. The Seven Layers — Overview First](#5-the-seven-layers--overview-first)
+  - [6. Walking the Layers — Sending an HTTPS POST](#6-walking-the-layers--sending-an-https-post)
+  - [7. Walking the Layers — Receiving the Request](#7-walking-the-layers--receiving-the-request)
+  - [8. The Diagrams — Data Units and Addressing](#8-the-diagrams--data-units-and-addressing)
+  - [9. Switch vs Router — Who Does What](#9-switch-vs-router--who-does-what)
+  - [10. Proxy, Firewall, Load Balancer, CDN — Who's Who](#10-proxy-firewall-load-balancer-cdn--whos-who)
+  - [11. OSI vs. TCP/IP Model](#11-osi-vs-tcpip-model)
+- [Part 3 — Host-to-Host Communication](#part-3--host-to-host-communication)
+  - [12. MAC Addresses — Layer 2 Addressing](#12-mac-addresses--layer-2-addressing)
+  - [13. IP Addresses — Layer 3 Hierarchical Addressing](#13-ip-addresses--layer-3-hierarchical-addressing)
+  - [14. Port Numbers — Layer 4 Multiplexing](#14-port-numbers--layer-4-multiplexing)
+  - [15. The Three Addressing Layers Working Together](#15-the-three-addressing-layers-working-together)
+- [Part 4 — Code Examples](#part-4--code-examples)
+  - [Example 1 — Socket Binding](#example-1--socket-binding-0000-vs-127001)
+  - [Example 2 — Raw TCP Client & Server](#example-2--raw-tcp-client--server)
+- [Full Flow — Tracing an HTTPS POST Across Two Networks](#full-flow--tracing-an-https-post-across-two-networks)
+- [Checklist](#checklist--what-you-should-know-after-this)
+
+---
+
 # Part 1 — Client-Server Architecture
 
-## 1. The Core Idea
+## 1. Who Is the Client, Who Is the Server?
 
-> **Analogy:** A restaurant kitchen is expensive to build and run, so one kitchen serves many tables — customers (clients) order from a menu, the kitchen (server) does all the heavy cooking.
+> **Analogy:** A restaurant — the tables (clients) place orders, the kitchen (server) does the actual cooking. One kitchen, many tables.
 
-The core innovation of client-server architecture was the ability to separate server and client components into different physical locations, allowing different pieces of code to execute remotely rather than on a single machine. This departed from the era of large, expensive mainframes — workloads could now be distributed between cheap commodity hardware on the client side and more powerful servers handling computationally intensive operations.
+- **Client** — the lightweight side. It's whatever makes the request: a browser, a mobile app, your frontend code. It runs on cheap, commodity hardware.
+- **Server** — the heavy side. It's whatever does the actual work: a backend service, a database. It runs on beefier hardware built to handle load.
 
-The fundamental problem this solved: machines were expensive and applications were growing increasingly complex. By decomposing a single monolithic application into multiple components that communicate across a network, the architecture enabled more efficient resource allocation.
+The key part isn't just that they're two different *roles* — it's that they can live on two different **physical machines**, connected over a network. That physical separation is the entire point of this architecture.
 
-This concept of breaking down monolithic systems into smaller, communicating components resurfaced in modern **microservices** architectures. Where monolithic services once ran entirely on single machines, microservices decompose them into multiple smaller services that call one another — the same principle at a different scale.
-
-The division of labor is based on **computational expense**. Expensive operations — those consuming significant RAM, CPU cycles, or disk I/O — are offloaded to servers equipped with robust resources. The client remains lightweight, functioning as a thin interface that delegates heavy lifting to the server.
-
-This model gave rise to **Remote Procedure Call (RPC)**, a concept dating back to the 1960s and 1970s. Early remote communication lacked standardization — as long as data could somehow reach the server across the wire, the implementation details were left to individual developers. Over time, standards emerged to formalize these interactions. Modern RPC frameworks like gRPC have built upon these foundational concepts, providing a universal communication protocol between distributed components.
-
-**Backend relevance:** Every backend service you write *is* the server half of this model. When you add a database, you're adding a second server tier — the three-tier architecture (presentation → application → data) is just client-server applied twice in a chain.
+**Backend relevance:** Every backend service you write *is* the server half of this model.
 
 ---
 
-## 2. Benefits of Client-Server Architecture
+## 2. The Old Approach — One Big Machine
 
-> **Analogy:** A bank's central vault — many branches (clients) access the same secure resources without each needing their own vault.
+> **Analogy:** One giant kitchen that also seats the customers, prints the menus, and washes its own dishes — everything happens in the same room because it has to.
 
-**Scalability:** By centralizing expensive operations on powerful servers while distributing lightweight clients across commodity hardware, multiple clients can connect to a single server and efficiently share computational resources. Clients benefit from faster startup times and smaller binary sizes because they no longer carry the full application logic and dependencies.
+Before client-server, applications ran as a single **monolith** on a single, expensive mainframe — UI, business logic, and data access all crammed onto one machine. There was no physical separation because there was no way to split the work across a network yet.
 
-**Edge flexibility and local computation:** Clients retain the ability to perform lightweight local tasks. This principle has experienced renewed interest with **edge computing** — even IoT devices, traditionally viewed as simple sensors transmitting data remotely, can now execute local computation. The flexibility to place logic on either the client or server side lets architects optimize for different performance and resource constraints.
-
-**Dependency management:** In a monolithic application, every dependency — database drivers, system libraries, external interfaces — must be installed alongside the application. In a client-server architecture, the server assumes responsibility for these dependencies. If the server needs to communicate with a database, it alone requires the appropriate database driver. The client simply makes remote calls without needing to understand the underlying implementation details.
-
-| Benefit | What it means in practice |
-|---|---|
-| Scalability | Many clients share one powerful server |
-| Smaller clients | No local dependencies (DB drivers, heavy libs) |
-| Dependency isolation | Server owns the DB driver; client just calls an API |
-| Edge flexibility | Logic can shift client-side (IoT, edge computing) when needed |
-| Three-tier architecture | A specialized form: presentation → application logic → data storage, with the server tier further decomposed |
-
-**Backend relevance:** The three-tier architecture — which explicitly separates presentation, application logic, and data storage — is a specialized form of client-server, with the server tier further decomposed into application and database components. This is the architecture of virtually every web application you will ever build.
+The problem: machines were expensive, and applications were getting more complex. Doing everything on one box didn't scale.
 
 ---
 
-## 3. Remote Procedure Call (RPC)
+## 3. How We Separate Them
 
-> **Analogy:** Calling a function that runs on someone else's computer, but writing it as if it were a local function call.
+> **Analogy:** Instead of one chef doing everything, you split the job — a waiter takes the order (client), a chef cooks it (server), and they communicate by passing a ticket back and forth.
 
-RPC dates back to the 1960s–70s. Early implementations were ad-hoc — as long as bits reached the server across the wire, the implementation details were left to individual developers. Over time, standards emerged to formalize these interactions. Modern RPC frameworks like **gRPC** have built upon these foundational concepts, providing a universal communication protocol between distributed components.
+The fix: break the one monolithic application into components that talk to each other **over a network** instead of calling each other in memory. The client sends a request; the server does the expensive work (heavy RAM/CPU/disk usage) and sends back a result.
+
+This "calling code that lives on another machine" pattern is a **Remote Procedure Call (RPC)** — an idea from the 1960s–70s. Early RPC had no standard; as long as bits reached the server, implementation was up to you. Over time this got standardized, and today's REST, gRPC, and GraphQL are all just different flavors of the same idea.
 
 ```bash
-# Example: curl as a manual RPC — you're calling a remote procedure (endpoint)
+# curl as a manual RPC — you're calling a remote procedure (an endpoint)
 curl -X POST https://api.example.com/users \
   -H "Content-Type: application/json" \
   -d '{"name": "Nouri"}'   # payload = arguments to the remote procedure
 ```
 
-**Backend relevance:** REST, gRPC, and GraphQL are all variations of RPC — different ways to call code that lives on another machine. The difference is in protocol, serialization format, and transport — not in the fundamental concept.
+**Microservices are the same concept, just applied more granularly** — instead of splitting into one client + one server, you split a monolith into many small services that call each other the same way.
+
+**Backend relevance:** Adding a database to your backend is adding a second server tier — the three-tier architecture (presentation → application → data) is just client-server applied twice in a chain.
 
 ---
 
-## 4. Why Standardization Is Non-Negotiable
+## 4. Benefits of Separating Them
 
-> **Analogy:** Electrical outlets — without a standard shape and voltage, every device would need its own custom wall socket.
+> **Analogy:** A bank's central vault — many branches (clients) access the same secure resources without each needing their own vault.
 
-Despite its advantages, client-server architecture introduces a critical requirement: a well-defined communication model. Without standardization, distributed systems devolve into incompatible implementations where each client-server pair uses proprietary protocols. While developers could theoretically transmit data using any medium — radio waves, electrical signals, or custom wire protocols — the absence of common standards makes interoperability impossible.
+| Benefit | What it means in practice |
+|---|---|
+| Scalability | Many clients share one powerful server |
+| Smaller clients | No local dependencies (DB drivers, heavy libs) — clients start faster, smaller binaries |
+| Dependency isolation | Server owns the DB driver; client just calls an API |
+| Edge flexibility | Logic can still shift client-side when useful (IoT, edge computing) |
+| Three-tier architecture | Presentation → application logic → data storage — a specialized form of client-server |
 
-For client-server architecture to realize its full potential, the industry needed universal communication standards that all systems could adopt, ensuring that clients and servers could understand one another regardless of their specific implementations.
-
-Standards solve this by creating **abstraction layers**: your `fetch()` call is identical whether the bits travel as radio waves, electrical pulses, or light through glass fiber.
-
-> [!IMPORTANT]
-> The OSI model is the industry's answer to this standardization problem — it defines exactly what each layer is responsible for so that layers above don't need to know anything about layers below.
+However — none of this works without a shared rulebook both sides agree to speak. That's what the OSI model gives us, covered next.
 
 ---
 
 # Part 2 — The OSI Model
 
-## 4. Why Do Communication Models Exist?
+## 4b. Why Do Communication Models Exist?
 
 Three problems that would make networked software impossible to build without standards:
 
@@ -123,7 +140,9 @@ Because each layer has a well-defined interface to the layer above and below, te
 
 ---
 
-## 5. The Seven Layers
+## 5. The Seven Layers — Overview First
+
+> **Analogy:** Think of it like a company org chart before you learn what each department actually does day-to-day — get the seven boxes in your head first, details come after.
 
 | Layer | Name | Data Unit | Key Protocol(s) | Device |
 |---|---|---|---|---|
@@ -135,44 +154,94 @@ Because each layer has a well-defined interface to the layer above and below, te
 | 2 | Data Link | Frame | Ethernet, Wi-Fi 802.11 | Switch |
 | 1 | Physical | Bits | — | Hub, NIC |
 
-**Quick plain-English breakdown of each layer:**
+One line per layer, nothing more for now:
+
+- **L7 Application** — the protocol your app speaks (HTTP, gRPC, FTP)
+- **L6 Presentation** — encoding/serialization (turns your object into bytes)
+- **L5 Session** — connection establishment, TLS handshake
+- **L4 Transport** — TCP or UDP, adds ports
+- **L3 Network** — IP, adds routing
+- **L2 Data Link** — frames, adds MAC addresses
+- **L1 Physical** — electric signal, radio, or light
+
+**Backend relevance:** As a backend engineer you live primarily in **layers 4 and 7** — binding to a port (L4) and speaking HTTP (L7). Knowing where each layer sits tells you what a proxy, firewall, or load balancer can actually *see*. The rest of this section walks through what each layer means in practice.
+
+<details>
+<summary>Layer details (open when you need the deeper explanation)</summary>
 
 **L7 — Application:** The protocol your actual app speaks. HTTP, gRPC, FTP. This is the data your code produces and consumes.
 
 **L6 — Presentation:** Converts your in-memory object (a JS object, a Python dict) into raw bytes that can travel over a wire, and back again on the other side. JSON serialization, UTF-8 encoding, encryption of the payload — all happen here.
 
-**L5 — Session:** Manages the *connection* between two machines before any app data flows. This needs unpacking:
+**L5 — Session:** Manages the *connection* between two machines before any app data flows.
 
 - **What is a connection?** Two machines agreeing "we're talking now" and keeping track of that conversation. Without a session, every message would arrive with no context — the server wouldn't know if it's a new request or a continuation.
 - **Stateful vs stateless:** A *stateful* protocol remembers the connection. TCP is stateful — both sides track sequence numbers, whether the connection is open, how much data can still be sent. If the connection breaks, it must be re-established. A *stateless* protocol doesn't remember anything between messages — UDP just fires packets, no connection, no tracking.
-- **What is an endpoint?** Just the two sides of a connection. Your laptop is one endpoint, `api.github.com` is the other. The word "endpoint" in APIs (like `POST /users`) borrows this term — it means a specific destination you're connecting to.
-- **What is a proxy?** A middleman machine that sits between two endpoints and manages connections on their behalf. Instead of your machine talking directly to the server, it talks to the proxy, and the proxy talks to the server. The proxy can pool, cache, inspect, or redirect connections. This is L5 work — it's about managing connections, not about what's inside them.
-- **TLS handshake:** Before encrypted data can flow, client and server must agree on encryption keys. This negotiation (the handshake) happens at L5 — it's connection setup, not data transfer. Only after the handshake is complete does L6/L7 data start flowing through the encrypted tunnel.
+- **What is an endpoint?** Just the two sides of a connection. Your laptop is one endpoint, `api.github.com` is the other. The word "endpoint" in APIs (like `POST /users`) borrows this term.
+- **TLS handshake:** Before encrypted data can flow, client and server must agree on encryption keys. This negotiation happens at L5 — it's connection setup, not data transfer. Only after the handshake completes does L6/L7 data start flowing through the encrypted tunnel.
 
 **L4 — Transport:** Adds port numbers so the OS knows which app gets the incoming data. Also handles reliability (TCP retransmits lost data) and ordering (TCP reassembles segments in the right sequence).
 
 **L3 — Network:** Adds IP addresses for routing across networks. Routers live here.
 
-**L2 — Data Link:** Adds MAC addresses for delivery *within* a single local network. Switches live here. More on this below.
+**L2 — Data Link:** Adds MAC addresses for delivery *within* a single local network. Switches live here.
 
 **L1 — Physical:** The actual wire, radio wave, or light pulse. Converts bits into signals.
 
-> [!NOTE]
-> MAC addresses appear at **L2 only** — they are stripped and rewritten at every router hop and never travel beyond the local network segment. IP addresses (L3) are the ones that survive the full end-to-end journey. This distinction is critical and is covered in depth in Part 3.
+</details>
 
-**Backend relevance:** As a backend engineer you live primarily in **layers 4 and 7**. You bind to a port (L4), speak HTTP (L7), and deal with TLS handshakes (L5) on every HTTPS connection. Understanding where each layer sits tells you what data a proxy, firewall, or load balancer can *see*.
+> [!NOTE]
+> MAC addresses appear at **L2 only** — they are stripped and rewritten at every router hop and never travel beyond the local network segment. IP addresses (L3) are the ones that survive the full end-to-end journey. Covered in depth in Part 3.
 
 ---
 
-## 6. Data Flow — Sending an HTTPS POST Request
+## 6. Walking the Layers — Sending an HTTPS POST
 
 > **Analogy:** Mailing a confidential document — you write it, seal it in a tamper-evident envelope, put that inside a shipping box with addresses, and hand it to a courier network that passes it hop-to-hop until it arrives.
 
-Each layer wraps the layer above's data in a new header — like Russian matryoshka dolls. The diagram below shows the data units produced at each layer:
+**Scenario:** your app sends a POST request with a JSON body to an HTTPS server. Top to bottom:
+
+1. **L7 Application** — your code builds the POST request with the JSON body
+2. **L6 Presentation** — the JSON object is serialized into a flat byte string
+3. **L5 Session** — a request to establish the TCP connection / TLS session
+4. **L4 Transport** — a SYN segment is sent targeting port `443`
+5. **L3 Network** — the SYN is placed into an IP packet with source/destination IPs added
+6. **L2 Data Link** — the packet goes into a frame with source/destination MAC addresses added
+7. **L1 Physical** — the frame becomes a string of bits, converted into radio (Wi-Fi), electric signal (Ethernet), or light (fiber)
+
+Take this with a grain of salt — it's not always this cleanly cut. For example, the SYN above doesn't carry your JSON yet; that's paused at L5 until the connection is actually established.
+
+---
+
+## 7. Walking the Layers — Receiving the Request
+
+The receiver does the exact same thing in reverse:
+
+1. **L1 Physical** — radio/electric/light is received and converted into digital bits
+2. **L2 Data Link** — bits are assembled into a frame
+3. **L3 Network** — the frame's contents are assembled into an IP packet
+4. **L4 Transport** — the IP packet's contents are assembled into a TCP segment (this is where congestion control, flow control, and retransmission happen). If the segment is a SYN, we stop here — there's no point going further up, since we're still just processing the connection request.
+5. **L5 Session** — once the handshake completes, the session is established. We only arrive here when a connection actually exists.
+6. **L6 Presentation** — the byte string is deserialized back into a JSON object
+7. **L7 Application** — your app understands the JSON POST request, and your framework's request handler (e.g. Express's route handler) fires
+
+> [!NOTE]
+> 📸 Both walkthroughs correspond to the diagram below — client and server each run the full stack, and a request travels down one side and up the other.
+
+---
+
+## 8. The Diagrams — Data Units and Addressing
+
+Each layer wraps the layer above's data in a new header — like Russian matryoshka dolls, one doll inside another:
 
 ![OSI layers and data units during an HTTPS POST](./imgs/httppost.png)
 
-Each layer also adds specific **addressing fields**. These are the "doors" data enters and exits through:
+- Layer 4 wraps the data into a **Segment**
+- Layer 3 wraps that into a **Packet**
+- Layer 2 wraps that into a **Frame**
+- Layer 1 turns the frame into raw bits/signal
+
+Each layer also adds specific **addressing fields** — the "doors" data enters and exits through:
 
 ![Header fields added at each layer (SPORT, DPORT, SIP, DIP, SMAC, DMAC)](./imgs/httppost2.png)
 
@@ -186,38 +255,61 @@ DMAC   — destination MAC address (Layer 2)
 ```
 
 > [!NOTE]
-> Decapsulation on the receiver is the exact reverse — bits → frame → packet → segment → session check → deserialize → application handler. Each unwrapping costs nanoseconds; at high traffic volumes these nanoseconds accumulate.
+> Unwrapping (decapsulation) on the receiver costs a finite amount of time at each layer — nanoseconds per hop. At high traffic volumes, these nanoseconds accumulate.
 
 ---
 
-## 7. Intermediary Devices and Which Layer They Reach
+## 9. Switch vs Router — Who Does What
 
-> **Analogy:** Airport security checks your boarding pass (L4 firewall), but customs opens your bag and reads your documents (L7 proxy).
+> **Analogy:** A switch is the mailroom inside one office building — it knows which desk is which. A router is the postal service between buildings — it needs the full address to figure out which building to send to.
 
-A packet rarely travels directly from client to server — it passes through switches, routers, firewalls, and load balancers, each processing only as deep as it needs to:
+A packet rarely travels directly from client to server — it hits a switch, then a router, then possibly more switches/routers, before reaching the server:
 
 ![Client → Switch → Router → Server: layers processed at each hop](./imgs/httppost3.png)
 
-For more complex deployments with L4 firewalls and L7 load balancers/CDNs in the path:
+| | Switch | Router |
+|---|---|---|
+| **Layer** | L2 (Data Link) | L3 (Network) |
+| **Looks at** | MAC addresses only | IP addresses |
+| **Job** | Connects devices *within* the same local network/subnet — forwards a frame only out the port the destination MAC is known to be on | Connects *different* networks/subnets together — decides which network a packet needs to go to next |
+| **Doesn't need** | IP addresses at all | — |
+| **Analogy** | Mailroom clerk who knows every desk in the building | Postal service routing between cities |
 
-![Client → L4 Firewall → L7 Load Balancer/CDN → Backend Server](./imgs/httppost4.png)
+Why this distinction matters: a switch's whole job is a MAC address lookup — that's it. A router has to go one layer deeper, to L3, because IP is what tells it whether a packet is meant for this network or needs to be forwarded onward. That's why a router is called a Layer 3 device and a switch a Layer 2 device — and why a router will sometimes behave like a switch too, when the destination happens to be on the same subnet.
 
-| Device | Highest Layer Read | What it sees | What it's blind to |
-|---|---|---|---|
-| Hub | L1 | Raw bits | Everything |
-| Switch | L2 | MAC addresses | IP, ports, payload |
-| Router | L3 | IP addresses | Ports, payload |
-| Firewall | L4 | IP + ports | Encrypted payload |
-| L7 Load Balancer / CDN | L7 | Full HTTP (after TLS termination) | Nothing — it's the endpoint |
-
-> [!IMPORTANT]
-> Layers 3 and 4 headers (IP addresses and ports) are **always visible in plaintext** — they are never encrypted because routers need them to deliver packets. This is why a VPN works: it wraps your original IP packet inside another IP packet, hiding your real destination from the ISP.
-
-**Backend relevance:** When you configure nginx to route `/api` to one backend and `/static` to another, you're building an L7 device. It must decrypt TLS, read the URL path, then re-encrypt to the backend — which is why L7 proxies are slower than L4 ones.
+**Backend relevance:** You'll rarely configure switches/routers directly, but this is exactly the layer distinction that shows up when you set up VPCs, subnets, and routing tables in AWS/GCP.
 
 ---
 
-## 8. OSI vs. TCP/IP Model
+## 10. Proxy, Firewall, Load Balancer, CDN — Who's Who
+
+> **Analogy:** Airport security checks your boarding pass and ID (L4 firewall) — quick, surface-level. Customs opens your bag and reads what's inside (L7 proxy) — slower, but it actually sees the contents.
+
+Once you add security and traffic-management devices into the path, each one only goes as deep into the stack as its job requires:
+
+![Client → L4 Firewall → L7 Load Balancer/CDN → Backend Server](./imgs/httppost4.png)
+
+| Device | Layer | What it does | What it can see | What it's blind to |
+|---|---|---|---|---|
+| **Firewall** | L4 | Blocks/allows traffic based on rules | IP addresses + ports | The encrypted payload — it doesn't decrypt anything |
+| **L4 / Transparent Proxy** | L4 | Passes traffic through unchanged, can only block by IP/port | IP + ports | Payload — it's "transparent" because it doesn't alter the content, just decides whether to let it through |
+| **L7 Load Balancer** | L7 | Decrypts TLS, reads the actual HTTP request, routes based on rules (e.g. path, header) | Full HTTP request | Nothing — it's a real endpoint in the conversation |
+| **CDN** (e.g. Fastly, Cloudflare) | L7 | Same as an L7 load balancer, just also caches content close to the client | Full HTTP request | Nothing — same as above |
+
+**Firewalls and transparent proxies** only need IP addresses and ports — both are always sent in plaintext, since routers need to read them to deliver anything at all. That's exactly why they *can't* see your payload: TLS encrypts everything from L5 upward, but L3/L4 headers stay visible. This is also how an ISP or government can block a *site* (they can see the destination IP) without being able to read *what* you sent.
+
+**L7 devices (load balancer, CDN, reverse proxy) are a different category entirely** — to make routing decisions based on the URL path or headers, they have to fully decrypt TLS, terminate the connection, read the HTTP request, then open a **brand-new connection** to the actual backend and re-encrypt. This is why:
+- They're meaningfully slower than L4 devices (decrypt → inspect → re-encrypt costs time)
+- They're called **reverse proxies** — the client thinks it's talking to its final destination, but the true backend is hidden behind it. (A regular *proxy* is the opposite: the client knows the final destination, and the proxy just forwards the request on the client's behalf.)
+
+> [!IMPORTANT]
+> Layer 3/4 headers (IP + ports) are **always plaintext** — never encrypted, because routers need them to deliver packets. This is also why VPNs work: they wrap your original IP packet inside another IP packet, hiding your real destination from anything downstream of the VPN.
+
+**Backend relevance:** When you configure nginx to route `/api` to one backend and `/static` to another, you're building an L7 reverse proxy. It must decrypt TLS, read the path, then re-encrypt to the backend — the exact tradeoff described above.
+
+---
+
+## 11. OSI vs. TCP/IP Model
 
 > **Analogy:** OSI is the academic textbook; TCP/IP is the engineer's field guide.
 
@@ -243,7 +335,7 @@ TCP/IP collapses the top three OSI layers into one "Application" layer — more 
 
 # Part 3 — Host-to-Host Communication
 
-## 9. MAC Addresses — Layer 2 Addressing
+## 12. MAC Addresses — Layer 2 Addressing
 
 > **Analogy:** Your apartment unit number inside one building — unique within the building, meaningless for mail coming from another city.
 
@@ -276,7 +368,7 @@ In a mesh network where all devices are directly connected, when host A sends a 
 
 ---
 
-## 10. IP Addresses — Layer 3 Hierarchical Addressing
+## 13. IP Addresses — Layer 3 Hierarchical Addressing
 
 > **Analogy:** A full postal address with country, city, street, and house number — routers use the country+city part to narrow down the route, then the street+house part for final delivery.
 
@@ -311,7 +403,7 @@ The same topology with real IP addresses:
 
 ---
 
-## 11. Port Numbers — Layer 4 Multiplexing
+## 14. Port Numbers — Layer 4 Multiplexing
 
 > **Analogy:** IP is the building address; the port is the apartment number. The postal carrier (OS) delivers the package to the right tenant (process).
 
@@ -352,7 +444,7 @@ ss -tnp    # Linux — shows established TCP connections
 
 ---
 
-## 12. The Three Addressing Layers Working Together
+## 15. The Three Addressing Layers Working Together
 
 > **Analogy:** Sending international mail — MAC is the street-level handoff between neighbors, IP is the international routing system, and the port is the department number inside the destination building.
 
@@ -489,8 +581,10 @@ sequenceDiagram
 
 # Checklist — What You Should Know After This
 
-- [ ] Why did client-server architecture replace monolithic mainframe computing?
-- [ ] What problem does RPC solve, and how do gRPC and REST relate to it?
+- [ ] Who is the client, who is the server, and where do they physically live?
+- [ ] What did the old monolithic (mainframe) approach look like, and why did it stop scaling?
+- [ ] How do we separate a monolith into client and server components, and what role does RPC play?
+- [ ] What are the main benefits of client-server separation?
 - [ ] Why is a standardized communication model necessary for networked applications?
 - [ ] What are the seven OSI layers and the data unit name at each layer?
 - [ ] What happens at each layer when a client sends an HTTPS POST request?
