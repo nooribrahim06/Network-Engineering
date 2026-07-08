@@ -28,11 +28,8 @@
   - [12. MAC Addresses — Layer 2 Addressing](#12-mac-addresses--layer-2-addressing)
   - [13. IP Addresses — Layer 3 Hierarchical Addressing](#13-ip-addresses--layer-3-hierarchical-addressing)
   - [14. Port Numbers — Layer 4 Multiplexing](#14-port-numbers--layer-4-multiplexing)
-  - [15. The Three Addressing Layers Working Together](#15-the-three-addressing-layers-working-together)
-- [Part 4 — Code Examples](#part-4--code-examples)
-  - [Example 1 — Socket Binding](#example-1--socket-binding-0000-vs-127001)
-  - [Example 2 — Raw TCP Client & Server](#example-2--raw-tcp-client--server)
-- [Full Flow — Tracing an HTTPS POST Across Two Networks](#full-flow--tracing-an-https-post-across-two-networks)
+  - [15. MAC vs IP vs Port — What's Actually Different](#15-mac-vs-ip-vs-port--whats-actually-different)
+  - [16. A Small Story — Device 1 Talking to Device 2](#16-a-small-story--device-1-talking-to-device-2)
 - [Checklist](#checklist--what-you-should-know-after-this)
 
 ---
@@ -444,7 +441,7 @@ ss -tnp    # Linux — shows established TCP connections
 
 ---
 
-## 15. The Three Addressing Layers Working Together
+## 15. MAC vs IP vs Port — What's Actually Different
 
 > **Analogy:** Sending international mail — MAC is the street-level handoff between neighbors, IP is the international routing system, and the port is the department number inside the destination building.
 
@@ -458,124 +455,62 @@ ss -tnp    # Linux — shows established TCP connections
 └─────────────────────────────────────────────────────────┘
 ```
 
-Each layer solves the problem the layer below cannot:
-- MACs are unique but unroutable globally → IP adds hierarchy
-- IPs identify hosts but not processes → ports add multiplexing
+The three exist because each one solves a problem the one below it can't:
+
+| | MAC Address | IP Address | Port |
+|---|---|---|---|
+| **Layer** | L2 | L3 | L4 |
+| **Answers** | "Which physical NIC, right now, on this segment?" | "Which host, anywhere on Earth?" | "Which process on that host?" |
+| **Scope** | Local network segment only | Global, end-to-end | Local to one host |
+| **Assigned by** | Hardware manufacturer (burned in) | Network admin / DHCP, based on which subnet you're on | The OS, per connection |
+| **Structure** | Flat, no hierarchy — can't be used to route | Hierarchical (network portion + host portion) — this is *why* it can be routed | Just a number, 0–65535 |
+| **Changes across the journey?** | Yes — rewritten at every router hop | No — stays the same source → destination | No — fixed for the life of the connection |
+| **Why we need it** | Needed to actually push bits to a NIC | MAC has no hierarchy — can't scale to global routing without it | IP only gets you to the right host — not the right process on it |
 
 > [!NOTE]
 > `127.0.0.1` (IPv4) / `::1` (IPv6) is the **loopback address**. Traffic sent here never leaves the machine. Services bound to `localhost` are invisible to the outside world — intentional for dev databases, dangerous if you think a service is exposed when it isn't.
 
 ---
 
-# Part 4 — Code Examples
+## 16. A Small Story — Device 1 Talking to Device 2
 
-> All examples are in [`code.js`](./code.js). No dependencies — Node.js built-ins only.
+> Two laptops, same office Wi-Fi. **Device 1** (`192.168.1.10`) wants to send something to **Device 2** (`192.168.1.20`), which is running a small web server on port `8080`. Let's follow the journey.
+
+**Meet the cast:**
+
+```
+Device 1                                    Device 2
+IP:  192.168.1.10                           IP:  192.168.1.20
+MAC: AA:BB:CC:00:00:01                      MAC: AA:BB:CC:00:00:02
+                                             Port 8080: a web server, listening
+```
 
 ---
 
-## Example 1 — Socket Binding: `0.0.0.0` vs `127.0.0.1`
+**1. Device 1 decides where to send.**
+Device 1 wants to reach `192.168.1.20:8080`. First question: *is this device on my own network, or somewhere else?* It checks the network portion of the IP (the first 24 bits, since both use a `/24` mask). `192.168.1.x` matches `192.168.1.x` — same network. Good news: no router needed, Device 1 can talk to Device 2 directly.
 
-**The backend decision you make on day 1 of every deployment.**
+**2. Device 1 needs a MAC address to actually send anything.**
+Knowing the IP isn't enough — to put a frame on the wire, Device 1 needs Device 2's *MAC* address. It doesn't know it yet, so it shouts across the network: **"Who has 192.168.1.20?"** (this is ARP — Address Resolution Protocol). Every device on the Wi-Fi hears the shout. Device 2 recognizes its own IP and replies: **"That's me — AA:BB:CC:00:00:02."** Device 1 now has everything it needs.
 
-When you start a server you choose *which network interface* it listens on. This is a Layer 4 decision — you're telling the OS which incoming TCP connections to accept:
+**3. The frame goes out.**
+Device 1 builds a frame addressed `SMAC: AA:BB:CC:00:00:01 → DMAC: AA:BB:CC:00:00:02`, wraps the IP packet inside it (`SIP: 192.168.1.10 → DIP: 192.168.1.20`), and sends it. Because it's Wi-Fi, this frame is technically broadcast to *every* device in earshot — Device 3, Device 4, the office printer, all of them hear it. But only Device 2 checks the destination MAC, sees its own address, and keeps it. Everyone else glances at it and drops it.
 
-| Bind address | Who can reach it | When to use |
-|---|---|---|
-| `0.0.0.0` | Anyone on any interface (LAN, public IP, loopback) | Your API in production |
-| `127.0.0.1` | Only processes on the same machine | Local dev DB, internal services |
+**4. Device 2 unwraps it.**
+Device 2 strips the frame, looks at the IP packet inside — *"yep, this is addressed to me"* — and pulls out what's underneath: a TCP segment with a destination port of `8080`.
 
-> [!WARNING]
-> A Redis or PostgreSQL instance accidentally bound to `0.0.0.0` on a public server with no firewall is one of the most common causes of real-world data breaches. Always check what your services are binding to.
-
-```bash
-# Run with 0.0.0.0 — then test from another machine on your network
-node code.js bind 0.0.0.0
-
-# Run with 127.0.0.1 — curl below works, but another machine cannot reach it
-node code.js bind 127.0.0.1
-
-# Test from the same machine (always works either way)
-curl http://localhost:3000
-
-# Test from another machine (only works with 0.0.0.0)
-curl http://<your-ip>:3000
-```
-
-The program also prints the **client's ephemeral port** on every connection so you can see the OS-assigned random source port in real time.
+**5. The port decides who actually gets it.**
+Device 2 might be running a dozen things at once — a web server on `8080`, a database on `5432`, an SSH daemon on `22`. The port is the only thing that tells the OS which one this data belongs to. It hands the segment to whatever process is listening on `8080`. That process replies, and the whole thing runs in reverse to get back to Device 1.
 
 ---
 
-## Example 2 — Raw TCP Client & Server
+**Now the same story, but Device 2 is on a different network** (`192.168.2.20`, behind a router):
 
-**Seeing Layer 4 directly — before any HTTP, before any framework.**
+Step 1 changes: Device 1 checks the network portion again — `192.168.1.x` vs `192.168.2.x` — **no match**. Device 1 now knows it can't reach Device 2 directly, no matter how loud it shouts on its own segment. So instead of ARP-ing for Device 2, it ARPs for its **default gateway** (the router) and sends the frame *there* instead — `DMAC` is the router's MAC, but `DIP` is still Device 2's IP the whole time.
 
-Every `fetch()`, `axios`, `pg.connect()`, and `redis.createClient()` call you make creates a TCP socket under the hood. This example strips away all layer-7 abstraction so you see the actual lifecycle:
+The router receives the frame, strips it down to the IP packet, checks its routing table, sees `192.168.2.0/24` is reachable out its other interface, and builds a **brand new frame** with its own MAC as the source and Device 2's MAC as the destination. The IP addresses never change — only the MAC addresses get swapped at every hop.
 
-```
-SYN  ──────────────────►  (client initiates)
-     ◄──────────────────  SYN-ACK
-ACK  ──────────────────►  (connection established)
-data ◄─────────────────►  (bidirectional byte stream)
-FIN  ──────────────────►  (client done writing)
-     ◄──────────────────  FIN-ACK
-```
-
-We also implement a minimal message protocol ourselves (JSON + `\n` delimiter) — which is exactly what Redis's RESP protocol and PostgreSQL's wire protocol do at their core.
-
-```bash
-# Terminal 1 — start the server
-node code.js server
-
-# Terminal 2 — connect a client
-node code.js client
-```
-
-**What to observe:**
-- The client's ephemeral source port printed on both sides
-- TCP stream behavior: three client sends may arrive in fewer `data` events on the server (Nagle's algorithm merging small segments)
-- The FIN handshake logged explicitly when the client calls `socket.end()`
-- `ECONNREFUSED` if you run the client before the server — this is a Layer 4 error, not HTTP
-
-> [!NOTE]
-> Connection pooling (used by every production DB client) is just keeping these TCP sockets open and reusing them instead of paying the 3-way handshake cost on every query. Now that you've seen what a socket is, connection pool sizing makes intuitive sense.
-
----
-
-# Full Flow — Tracing an HTTPS POST Across Two Networks
-
-**Scenario:** Your backend (192.168.1.3) sends a POST request to an API server (192.168.2.2) through a router.
-
-```mermaid
-sequenceDiagram
-    participant App as Your App (L7)
-    participant OS as OS / Network Stack
-    participant NIC as NIC (L1–L2)
-    participant R as Router
-    participant SNIC as Server NIC (L1–L2)
-    participant SOS as Server OS
-    participant SApp as Server App (L7)
-
-    App->>OS: POST /data with JSON body
-    OS->>OS: L6: serialize JSON → UTF-8 bytes
-    OS->>OS: L5: TLS established — encrypt payload
-    OS->>OS: L4: wrap in TCP segment (SPORT:54321 → DPORT:443)
-    OS->>OS: L3: wrap in IP packet (SIP:192.168.1.3 → DIP:192.168.2.2)
-    OS->>OS: L2: DIP not on my subnet → ARP for gateway MAC
-    OS->>NIC: frame (SMAC:my-mac, DMAC:router-mac)
-    NIC->>R: bits over wire
-
-    R->>R: L2: receive frame — DMAC matches me
-    R->>R: L3: DIP=192.168.2.2 → routing table → forward to N2
-    R->>SNIC: new frame (SMAC:router-mac, DMAC:server-mac)
-
-    SNIC->>SOS: bits → frame → packet → segment
-    SOS->>SOS: L5: TLS — decrypt payload
-    SOS->>SOS: L6: deserialize bytes → structured object
-    SOS->>SApp: parsed JSON arrives at POST handler
-```
-
-> [!IMPORTANT]
-> **MAC addresses change at every router hop** — the router rewrites SMAC and DMAC for each new link. **IP addresses stay the same** end-to-end. This is the fundamental difference between L2 and L3 addressing.
+> **The one-line version:** IP decides *if* you need help getting there. MAC gets you to the *very next* device in line — never further. Port decides *who on that device* actually cares once it arrives.
 
 ---
 
@@ -589,14 +524,14 @@ sequenceDiagram
 - [ ] What are the seven OSI layers and the data unit name at each layer?
 - [ ] What happens at each layer when a client sends an HTTPS POST request?
 - [ ] What is encapsulation, and what is the matryoshka-doll analogy for it?
-- [ ] Up to which layer does a switch, router, firewall, and L7 load balancer each process traffic?
+- [ ] What's the difference between a switch and a router, and between a firewall, proxy, load balancer, and CDN?
 - [ ] Why are IP addresses and ports always visible to intermediary devices, but HTTP payloads are not?
 - [ ] Why is a MAC address insufficient for global routing?
 - [ ] What are the two logical parts of an IPv4 address, and what does `/24` in CIDR notation mean?
 - [ ] How does a host decide whether to send a packet directly or via the default gateway?
 - [ ] What is port multiplexing, and what is the difference between a well-known port and an ephemeral port?
 - [ ] What is the loopback address, and why does binding to `localhost` vs `0.0.0.0` matter?
-- [ ] Why do MAC addresses change at every router hop while IP addresses stay the same?
+- [ ] Can you walk through Device 1 sending to Device 2, both on the same network, then again across two networks?
 - [ ] Can you trace a real-world scenario end-to-end using everything from this lecture?
 
 ---
