@@ -267,6 +267,49 @@ Key fields worth knowing right now:
 
 **Backend relevance:** the `Protocol` field is why a firewall can tell TCP traffic (your API calls) apart from ICMP traffic (pings) apart from UDP — it's the very first filter applied before your app ever sees a byte.
 
+### A closer look at a few more header fields
+
+The fields above are the ones you'll use daily, but a few more fields in the real header are worth actually understanding rather than skipping past.
+
+#### Version
+
+> **Analogy:** Version is just the label on the envelope telling the post office "this is a Type-4 form, not a Type-6 form" — it tells every router which set of rules to use to read the rest of the header.
+
+A 4-bit field, always the very first thing read. It's either `4` (IPv4, what this lecture covers) or `6` (IPv6). Since IPv4 and IPv6 headers are laid out completely differently, a router has to know this before it can make sense of a single other field.
+
+#### IHL — Internet Header Length
+
+> **Analogy:** IHL is like a note at the top of a form saying "this form has 5 sections" — it tells the reader exactly where the header ends and the actual content (Data) begins.
+
+A 4-bit field that states the header's length, measured in **32-bit (4-byte) words**. The minimum legal value is `5`, meaning `5 × 4 = 20 bytes` — a plain header with no extra options. If optional fields are attached, IHL goes up accordingly (up to a max of `15 × 4 = 60 bytes`). Without this field, a device wouldn't know where the header stops and the payload starts.
+
+#### Congestion — and what ECN does about it
+
+> **Analogy:** Congestion is a traffic jam. Every router has a limited amount of "road" (bandwidth and buffer space) it can push packets through per second. When more packets show up than it can forward, they start to queue up — and if the queue fills completely, new packets simply get dropped, like cars that can't fit onto a full highway.
+
+**Congestion** is what happens when a network link or router receives more traffic than it can currently handle. The two normal symptoms are:
+
+- **Delay** — packets sit in a queue longer before being forwarded.
+- **Packet loss** — once the queue is full, arriving packets are dropped outright.
+
+**ECN (Explicit Congestion Notification)** is a 2-bit field that gives routers a way to warn endpoints about this *before* it gets bad enough to start dropping packets. Instead of silently discarding a packet once congestion becomes severe, a router experiencing early congestion can mark the ECN bits on a packet as it passes through — a small flag that says "traffic is getting heavy along this path." The receiving end sees this mark and can signal the sender to slow down, easing the congestion before real packet loss happens. If ECN is never used, the field simply stays at `0`, and routers fall back to dropping packets as the only way to signal congestion.
+
+#### Fragmentation — and the three fields that support it
+
+> **Analogy:** Imagine mailing a large piece of furniture that's too big to fit through a normal doorway. You saw it into smaller pieces, ship each piece separately, and label every piece clearly — "part 2 of 4, box #57" — so whoever receives them can reassemble the original object correctly, in the right order.
+
+**Fragmentation** is exactly this, but for packets. Every physical network link has a maximum packet size it can carry in one piece, called the **MTU (Maximum Transmission Unit)** — commonly 1500 bytes on Ethernet. If an IP packet is larger than the MTU of a link it needs to cross, it has to be **split into smaller fragments**, each with its own copy of the IP header, sent separately, and reassembled by the receiving host once every fragment has arrived.
+
+Three header fields exist specifically to make this splitting and reassembly work:
+
+| Field | What it does |
+| ----- | ------------- |
+| **Identification** | A number the sender attaches to every fragment of the *same* original packet. All fragments belonging to one packet share this same value, so the receiver knows which fragments belong together (like the "box #57" label in the analogy above). |
+| **Flags** | A small set of control bits. One of them, "Don't Fragment," tells routers *not* to split this packet even if it's too big (instead, the router drops it and reports back that fragmentation would have been needed). Another, "More Fragments," is set on every fragment except the last one, so the receiver knows when reassembly is complete. |
+| **Fragment Offset** | Tells the receiver exactly *where* this particular fragment fits within the original, unfragmented packet — like a page number, so the pieces can be reassembled in the correct order even if they arrive out of sequence. |
+
+Together, these three fields let a single oversized packet be broken apart at any point along its path and correctly rebuilt at the destination, regardless of the order the pieces actually arrive in.
+
 ---
 
 ## 8. TTL — Time To Live

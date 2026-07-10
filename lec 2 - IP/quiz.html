@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lec 02 Quiz — IP / ICMP / ARP / Routing</title>
+<style>
+  :root{
+    --bg: #0d1117;
+    --panel: #151b26;
+    --panel-line: #232b3a;
+    --text: #dbe2ef;
+    --muted: #7d8aa3;
+    --src: #f2a154;      /* source / header-field orange, matches lecture slides */
+    --data: #4fc7d6;     /* data / protocol cyan */
+    --dst: #e8c34a;      /* destination yellow */
+    --ok: #57c785;
+    --bad: #e2645a;
+    --mono: "IBM Plex Mono", "SF Mono", Menlo, Consolas, monospace;
+    --sans: "IBM Plex Sans", -apple-system, Segoe UI, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+  }
+
+  body {
+    display: flex;
+    justify-content: center;
+    padding: 48px 20px 80px;
+  }
+
+  .wrap { width: 100%; max-width: 720px; }
+
+  /* ---------- header / "frame strip" ---------- */
+  .frame-strip {
+    display: flex;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.03em;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 28px;
+    box-shadow: 0 0 0 1px var(--panel-line);
+  }
+  .frame-strip span {
+    padding: 7px 12px;
+    color: #10141c;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .frame-strip .a { background: var(--src); }
+  .frame-strip .b { background: var(--dst); flex: 0 0 auto; }
+  .frame-strip .c { background: var(--data); flex: 1 1 auto; text-align: center; }
+  .frame-strip .d { background: var(--src); opacity: 0.6; }
+  .frame-strip .e { background: var(--dst); opacity: 0.6; }
+
+  header.title-block { margin-bottom: 36px; }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--data);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin: 0 0 10px;
+  }
+  h1 {
+    font-size: 27px;
+    line-height: 1.25;
+    margin: 0 0 8px;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+  }
+  .subtitle { color: var(--muted); font-size: 14.5px; line-height: 1.5; margin: 0; }
+
+  /* ---------- progress ---------- */
+  .progress-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 28px 0 22px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .progress-track {
+    flex: 1;
+    height: 4px;
+    background: var(--panel-line);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--src), var(--data));
+    width: 0%;
+    transition: width 0.35s ease;
+  }
+
+  /* ---------- question card ---------- */
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--panel-line);
+    border-radius: 12px;
+    padding: 28px 26px 24px;
+  }
+  .q-tag {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--src);
+    letter-spacing: 0.08em;
+    margin-bottom: 12px;
+  }
+  .q-text {
+    font-size: 17px;
+    line-height: 1.5;
+    margin: 0 0 20px;
+    font-weight: 550;
+  }
+  .q-text code {
+    font-family: var(--mono);
+    background: #1e2634;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 0.92em;
+    color: var(--data);
+  }
+
+  .options { display: flex; flex-direction: column; gap: 9px; }
+
+  .opt {
+    text-align: left;
+    background: #10161f;
+    border: 1px solid var(--panel-line);
+    border-radius: 8px;
+    padding: 12px 14px;
+    color: var(--text);
+    font-size: 14.5px;
+    font-family: var(--sans);
+    cursor: pointer;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    transition: border-color 0.15s ease, background 0.15s ease, transform 0.1s ease;
+  }
+  .opt:hover:not(:disabled) {
+    border-color: var(--data);
+    background: #131b26;
+  }
+  .opt:active:not(:disabled) { transform: scale(0.995); }
+  .opt:disabled { cursor: default; }
+
+  .opt .letter {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+    border: 1px solid var(--panel-line);
+    border-radius: 4px;
+    width: 20px;
+    height: 20px;
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 1px;
+  }
+
+  .opt.correct {
+    border-color: var(--ok);
+    background: rgba(87, 199, 133, 0.09);
+  }
+  .opt.correct .letter { border-color: var(--ok); color: var(--ok); }
+
+  .opt.wrong {
+    border-color: var(--bad);
+    background: rgba(226, 100, 90, 0.09);
+  }
+  .opt.wrong .letter { border-color: var(--bad); color: var(--bad); }
+
+  .opt.dim { opacity: 0.45; }
+
+  /* ---------- explanation ---------- */
+  .explain {
+    margin-top: 18px;
+    padding: 14px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--panel-line);
+    background: #10161f;
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: var(--text);
+    display: none;
+  }
+  .explain.show { display: block; }
+  .explain .verdict {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 7px;
+    display: inline-block;
+  }
+  .explain.ok .verdict { color: var(--ok); }
+  .explain.bad .verdict { color: var(--bad); }
+  .explain code {
+    font-family: var(--mono);
+    background: #1e2634;
+    padding: 1px 5px;
+    border-radius: 4px;
+    color: var(--dst);
+    font-size: 0.9em;
+  }
+
+  .next-row { margin-top: 20px; display: flex; justify-content: flex-end; }
+  button.next {
+    font-family: var(--mono);
+    font-size: 13px;
+    background: var(--data);
+    color: #0a0f16;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 7px;
+    cursor: pointer;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    display: none;
+  }
+  button.next.show { display: inline-block; }
+  button.next:hover { filter: brightness(1.08); }
+
+  /* ---------- results ---------- */
+  .results { display: none; text-align: center; padding: 10px 4px; }
+  .results.show { display: block; }
+  .score-big {
+    font-family: var(--mono);
+    font-size: 56px;
+    font-weight: 700;
+    line-height: 1;
+    margin: 10px 0 4px;
+    background: linear-gradient(90deg, var(--src), var(--data));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .score-label { color: var(--muted); font-size: 13px; font-family: var(--mono); letter-spacing: 0.05em; }
+  .score-msg { margin: 22px 0 10px; font-size: 15px; line-height: 1.6; color: var(--text); }
+  .restart {
+    margin-top: 18px;
+    font-family: var(--mono);
+    font-size: 13px;
+    background: transparent;
+    color: var(--data);
+    border: 1px solid var(--panel-line);
+    padding: 10px 18px;
+    border-radius: 7px;
+    cursor: pointer;
+  }
+  .restart:hover { border-color: var(--data); }
+
+  footer.back {
+    margin-top: 30px;
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  @media (max-width: 480px) {
+    .score-big { font-size: 44px; }
+    .frame-strip span { padding: 6px 8px; font-size: 10px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="frame-strip" aria-hidden="true">
+    <span class="a">aa:bc:32</span>
+    <span class="b">10.0.0.2</span>
+    <span class="c">GET /</span>
+    <span class="d">10.0.0.3</span>
+    <span class="e">bb:ab:dd</span>
+  </div>
+
+  <header class="title-block">
+    <p class="eyebrow">Lecture 02 — Self-Check</p>
+    <h1>IP Addressing, ICMP, ARP &amp; Routing Quiz</h1>
+    <p class="subtitle">10 questions, medium difficulty. Pick an answer to see whether you're right and why — this checks understanding, not memorization.</p>
+  </header>
+
+  <div class="progress-row">
+    <span id="progressLabel">Question 1 / 10</span>
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    <span id="scoreLabel">Score: 0</span>
+  </div>
+
+  <div class="card" id="quizCard">
+    <div class="q-tag" id="qTag">TOPIC — SUBNETTING</div>
+    <p class="q-text" id="qText"></p>
+    <div class="options" id="optionsBox"></div>
+    <div class="explain" id="explainBox">
+      <span class="verdict" id="verdictText"></span>
+      <div id="explainText"></div>
+    </div>
+    <div class="next-row">
+      <button class="next" id="nextBtn">Next question →</button>
+    </div>
+  </div>
+
+  <div class="results" id="resultsBox">
+    <div class="score-label">FINAL SCORE</div>
+    <div class="score-big" id="finalScore">0 / 10</div>
+    <p class="score-msg" id="scoreMsg"></p>
+    <button class="restart" id="restartBtn">↺ Retake quiz</button>
+  </div>
+
+  <footer class="back">lec-02 / quiz.html</footer>
+</div>
+
+<script>
+const QUESTIONS = [
+  {
+    tag: "TOPIC — SUBNETTING",
+    q: "Host <code>172.16.5.9/22</code> wants to reach <code>172.16.7.40</code>. Are they on the same subnet?",
+    options: [
+      "Yes — both addresses start with 172.16, that's enough",
+      "No — /22 covers only 172.16.5.0/24, so .7.x is out of range",
+      "Yes — /22 spans 172.16.4.0 through 172.16.7.255, and .40 falls inside that",
+      "Cannot be determined without knowing the default gateway"
+    ],
+    correct: 2,
+    explain: "A /22 mask is 255.255.252.0 — it borrows only 22 bits, leaving the last 2 bits of the third octet plus the whole fourth octet as host bits. That gives blocks of 4 in the third octet, so this /22 covers 172.16.4.0–172.16.7.255. Both .5.9 and .7.40 fall inside that single range, so they're on the same subnet — no gateway hop required. The /24 assumption in option B is the classic mistake: always compute the actual block size from the mask, don't assume /24."
+  },
+  {
+    tag: "TOPIC — IP HEADER",
+    q: "A router receives a packet with TTL = 1 and cannot deliver it to the final destination from here. What does the router do?",
+    options: [
+      "Forwards it anyway since TTL only matters for UDP",
+      "Silently drops it with no notification to anyone",
+      "Decrements TTL to 0, drops the packet, and sends an ICMP Time Exceeded message back to the source",
+      "Buffers the packet until TTL is manually reset"
+    ],
+    correct: 2,
+    explain: "TTL exists purely to stop packets from looping forever due to routing misconfigurations. Every hop decrements it by one; when it would reach 0, the router drops the packet and reports back with <code>ICMP Time Exceeded</code> so the sender knows what happened. This exact mechanism — deliberately triggering that message hop-by-hop — is what <code>traceroute</code> exploits to map a path."
+  },
+  {
+    tag: "TOPIC — ARP",
+    q: "Host A (10.0.0.2/24) wants to send a packet to 172.20.4.9. What MAC address does ARP resolve for this packet?",
+    options: [
+      "The MAC address of 172.20.4.9 itself",
+      "The MAC address of Host A's default gateway",
+      "The broadcast MAC address FF:FF:FF:FF:FF:FF",
+      "No ARP is needed since the destination is remote"
+    ],
+    correct: 1,
+    explain: "172.20.4.9 is outside Host A's /24 subnet, so Host A never needs (and can't get) the remote host's MAC address directly. It only needs the MAC of the next physical hop — its default gateway. ARP resolves that gateway's MAC, the frame is addressed to the gateway, and the IP header still carries the true destination IP (172.20.4.9) all the way through."
+  },
+  {
+    tag: "TOPIC — ICMP",
+    q: "A ping to a production server times out with no reply. Which conclusion is correctly justified by this alone?",
+    options: [
+      "The server's application (e.g. the web service on port 443) must be down",
+      "The host is definitely powered off or disconnected",
+      "ICMP might simply be filtered by a firewall — the app itself could still be reachable",
+      "The DNS record for the server must be misconfigured"
+    ],
+    correct: 2,
+    explain: "ICMP has no ports and no application logic, so it's trivially easy for a firewall or security group to block Echo Request/Reply entirely while still allowing normal TCP traffic through. A failed ping is evidence about ICMP reachability only — the correct next step is to test the actual service port directly (e.g. curl on 443), not to assume an outage."
+  },
+  {
+    tag: "TOPIC — ROUTING",
+    q: "Why does the destination MAC address change at every hop along a packet's path, while the destination IP address stays the same?",
+    options: [
+      "It's a historical quirk of Ethernet with no functional purpose",
+      "IP addresses identify the final endpoint; MAC addresses only ever identify the immediate next physical neighbor",
+      "MAC addresses change because IP addresses are being NAT'd at every hop",
+      "The destination MAC only changes if the packet crosses a wireless link"
+    ],
+    correct: 1,
+    explain: "This is the core mental model of Layer 2 vs Layer 3: IP is end-to-end (\"who is this ultimately for\"), while MAC is hop-by-hop (\"who do I physically hand this to right now\"). Each router along the path re-frames the packet with a new source/destination MAC pair for the next segment, while leaving the IP header's destination address untouched."
+  },
+  {
+    tag: "TOPIC — ARP SECURITY",
+    q: "What is the fundamental weakness that ARP poisoning (ARP spoofing) exploits?",
+    options: [
+      "ARP requests are encrypted with a weak cipher that can be brute-forced",
+      "ARP replies are trusted without any authentication of who sent them",
+      "ARP tables never expire, so poisoned entries are permanent",
+      "ARP only works over Wi-Fi, making wired networks immune"
+    ],
+    correct: 1,
+    explain: "ARP has no built-in authentication — any device on the local segment can claim to own an IP address, and hosts will simply believe the reply and cache it. An attacker claiming to be the gateway causes victims to route their traffic through the attacker first (a man-in-the-middle setup). Defenses like Dynamic ARP Inspection or static entries live at the switch/network-admin layer, since ARP itself has no way to verify a reply's authenticity."
+  },
+  {
+    tag: "TOPIC — IP HEADER",
+    q: "A packet has IHL = 5 (5 x 32-bit words) and no fragmentation. Roughly how large is its header, and what does the Protocol field tell the receiving host?",
+    options: [
+      "40 bytes; it tells the host which port to deliver to",
+      "20 bytes; it tells the host which higher-layer protocol (TCP/UDP/ICMP) the payload belongs to",
+      "5 bytes; it tells the host the packet's priority level",
+      "20 bytes; it specifies the destination MAC address"
+    ],
+    correct: 1,
+    explain: "IHL is expressed in 32-bit (4-byte) words, so IHL=5 means 5 x 4 = 20 bytes — the minimum IPv4 header size, with no options present. The Protocol field is what tells the receiving IP stack what's riding inside the payload (e.g. 1 = ICMP, 6 = TCP, 17 = UDP) so it can hand the data to the right piece of software. Port numbers live inside the TCP/UDP header, one layer up — not in the IP header itself."
+  },
+  {
+    tag: "TOPIC — TRACEROUTE",
+    q: "How does traceroute discover the routers along a path to a destination?",
+    options: [
+      "It queries a central DNS-like registry of all routers on the internet",
+      "It sends packets with TTL increasing from 1 upward, and reads the ICMP Time Exceeded reply from whichever router the packet dies at",
+      "It relies on each router broadcasting its identity every second",
+      "It uses ARP broadcasts across every subnet on the path"
+    ],
+    correct: 1,
+    explain: "Traceroute deliberately abuses the TTL mechanism: it sends a packet with TTL=1 (dies at hop 1, which replies), then TTL=2 (dies at hop 2), and so on, extracting the identity of each router as it goes from ICMP Time Exceeded replies. The final packet reaches the destination successfully and gets a normal Echo Reply instead. It's fully dependent on routers actually sending back ICMP — which some networks filter, causing gaps in the trace."
+  },
+  {
+    tag: "TOPIC — PRIVATE ADDRESSING",
+    q: "Which of the following correctly explains why 10.0.0.5 can't be reached directly from the public internet?",
+    options: [
+      "10.0.0.0/8 is a private range, reserved for internal use and not routed on the public internet without NAT",
+      "10.x.x.x addresses are reserved exclusively for IPv6 transition",
+      "It's a technical limitation of Ethernet frame size",
+      "Private IPs are simply IPv4 addresses that have expired"
+    ],
+    correct: 0,
+    explain: "10.0.0.0/8, along with 172.16.0.0/12 and 192.168.0.0/16, are the reserved private ranges (RFC 1918) — public internet routers won't forward traffic to or from them directly. To become reachable externally, a private address has to go through NAT, where a gateway rewrites it to a public IP on the way out (and reverses the mapping on the way back)."
+  },
+  {
+    tag: "TOPIC — END-TO-END SCENARIO",
+    q: "A backend server (10.0.0.3) receives an unexpected surge of TCP resets from a client on the same LAN. tcpdump shows the client's ARP table now maps the gateway's IP to a MAC address that doesn't match the real gateway hardware. What is the most likely explanation?",
+    options: [
+      "A normal DHCP lease renewal changed the gateway's MAC",
+      "The client is affected by ARP poisoning — an attacker on the LAN is impersonating the gateway",
+      "The gateway itself changed its subnet mask",
+      "This is expected behavior any time TTL expires"
+    ],
+    correct: 1,
+    explain: "A mismatched IP-to-MAC mapping for the gateway, appearing suddenly, is the textbook signature of ARP poisoning: some device on the LAN sent an unsolicited ARP reply claiming to be the gateway, and the client cached it without verification. The client's traffic destined for the internet is now silently being routed through the attacker first — a man-in-the-middle setup — which is exactly the vulnerability described in the ARP poisoning section of this lecture."
+  }
+];
+
+let current = 0;
+let score = 0;
+let answered = false;
+
+const qTag = document.getElementById('qTag');
+const qText = document.getElementById('qText');
+const optionsBox = document.getElementById('optionsBox');
+const explainBox = document.getElementById('explainBox');
+const verdictText = document.getElementById('verdictText');
+const explainText = document.getElementById('explainText');
+const nextBtn = document.getElementById('nextBtn');
+const progressFill = document.getElementById('progressFill');
+const progressLabel = document.getElementById('progressLabel');
+const scoreLabel = document.getElementById('scoreLabel');
+const quizCard = document.getElementById('quizCard');
+const resultsBox = document.getElementById('resultsBox');
+const finalScore = document.getElementById('finalScore');
+const scoreMsg = document.getElementById('scoreMsg');
+const restartBtn = document.getElementById('restartBtn');
+
+const LETTERS = ['A', 'B', 'C', 'D'];
+
+function renderQuestion() {
+  answered = false;
+  const item = QUESTIONS[current];
+  qTag.textContent = item.tag;
+  qText.innerHTML = item.q;
+  optionsBox.innerHTML = '';
+  explainBox.classList.remove('show', 'ok', 'bad');
+  nextBtn.classList.remove('show');
+
+  item.options.forEach((opt, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'opt';
+    btn.innerHTML = `<span class="letter">${LETTERS[i]}</span><span>${opt}</span>`;
+    btn.addEventListener('click', () => selectOption(i, btn));
+    optionsBox.appendChild(btn);
+  });
+
+  progressLabel.textContent = `Question ${current + 1} / ${QUESTIONS.length}`;
+  progressFill.style.width = `${(current / QUESTIONS.length) * 100}%`;
+  scoreLabel.textContent = `Score: ${score}`;
+}
+
+function selectOption(i, btnEl) {
+  if (answered) return;
+  answered = true;
+  const item = QUESTIONS[current];
+  const allOpts = optionsBox.querySelectorAll('.opt');
+
+  allOpts.forEach((el, idx) => {
+    el.disabled = true;
+    if (idx === item.correct) el.classList.add('correct');
+    else if (idx === i) el.classList.add('wrong');
+    else el.classList.add('dim');
+  });
+
+  const isCorrect = i === item.correct;
+  if (isCorrect) score++;
+
+  explainBox.classList.add('show', isCorrect ? 'ok' : 'bad');
+  verdictText.textContent = isCorrect ? '✓ Correct' : '✗ Not quite';
+  explainText.innerHTML = item.explain;
+
+  scoreLabel.textContent = `Score: ${score}`;
+  nextBtn.classList.add('show');
+  nextBtn.textContent = current === QUESTIONS.length - 1 ? 'See results →' : 'Next question →';
+}
+
+nextBtn.addEventListener('click', () => {
+  current++;
+  if (current >= QUESTIONS.length) {
+    showResults();
+  } else {
+    renderQuestion();
+  }
+});
+
+function showResults() {
+  quizCard.style.display = 'none';
+  resultsBox.classList.add('show');
+  progressFill.style.width = '100%';
+  progressLabel.textContent = `Question ${QUESTIONS.length} / ${QUESTIONS.length}`;
+  finalScore.textContent = `${score} / ${QUESTIONS.length}`;
+
+  let msg;
+  if (score === QUESTIONS.length) {
+    msg = "Clean sweep — subnetting, ARP resolution, TTL, and the poisoning scenario all landed. This lecture is solid ground for you.";
+  } else if (score >= QUESTIONS.length * 0.7) {
+    msg = "Strong grasp overall. Revisit whichever explanation above didn't feel obvious before moving to NAT next.";
+  } else if (score >= QUESTIONS.length * 0.4) {
+    msg = "Decent start, but a few core mechanics (subnet math, ARP's local-vs-remote split, or TTL) are still shaky — worth a re-read of Parts 1–3.";
+  } else {
+    msg = "This one needs another pass. Go back through the analogies in Parts 1–3 before moving on — the mental model matters more than any single fact here.";
+  }
+  scoreMsg.textContent = msg;
+}
+
+restartBtn.addEventListener('click', () => {
+  current = 0;
+  score = 0;
+  resultsBox.classList.remove('show');
+  quizCard.style.display = 'block';
+  renderQuestion();
+});
+
+renderQuestion();
+</script>
+</body>
+</html>
