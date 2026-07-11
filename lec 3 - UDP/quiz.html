@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lec 03 Quiz — UDP</title>
+<style>
+  :root{
+    --bg: #0d1117;
+    --panel: #151b26;
+    --panel-line: #232b3a;
+    --text: #dbe2ef;
+    --muted: #7d8aa3;
+    --src: #f2a154;      /* source / header-field orange, matches lecture slides */
+    --data: #4fc7d6;     /* data / protocol cyan */
+    --dst: #e8c34a;      /* destination yellow */
+    --ok: #57c785;
+    --bad: #e2645a;
+    --mono: "IBM Plex Mono", "SF Mono", Menlo, Consolas, monospace;
+    --sans: "IBM Plex Sans", -apple-system, Segoe UI, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+  }
+
+  body {
+    display: flex;
+    justify-content: center;
+    padding: 48px 20px 80px;
+  }
+
+  .wrap { width: 100%; max-width: 720px; }
+
+  /* ---------- header / "frame strip" ---------- */
+  .frame-strip {
+    display: flex;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.03em;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 28px;
+    box-shadow: 0 0 0 1px var(--panel-line);
+  }
+  .frame-strip span {
+    padding: 7px 12px;
+    color: #10141c;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .frame-strip .a { background: var(--src); }
+  .frame-strip .b { background: var(--dst); flex: 0 0 auto; }
+  .frame-strip .c { background: var(--data); flex: 1 1 auto; text-align: center; }
+  .frame-strip .d { background: var(--src); opacity: 0.6; }
+  .frame-strip .e { background: var(--dst); opacity: 0.6; }
+
+  header.title-block { margin-bottom: 36px; }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--data);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin: 0 0 10px;
+  }
+  h1 {
+    font-size: 27px;
+    line-height: 1.25;
+    margin: 0 0 8px;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+  }
+  .subtitle { color: var(--muted); font-size: 14.5px; line-height: 1.5; margin: 0; }
+
+  /* ---------- progress ---------- */
+  .progress-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 28px 0 22px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .progress-track {
+    flex: 1;
+    height: 4px;
+    background: var(--panel-line);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--src), var(--data));
+    width: 0%;
+    transition: width 0.35s ease;
+  }
+
+  /* ---------- question card ---------- */
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--panel-line);
+    border-radius: 12px;
+    padding: 28px 26px 24px;
+  }
+  .q-tag {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--src);
+    letter-spacing: 0.08em;
+    margin-bottom: 12px;
+  }
+  .q-text {
+    font-size: 17px;
+    line-height: 1.5;
+    margin: 0 0 20px;
+    font-weight: 550;
+  }
+  .q-text code {
+    font-family: var(--mono);
+    background: #1e2634;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 0.92em;
+    color: var(--data);
+  }
+
+  .options { display: flex; flex-direction: column; gap: 9px; }
+
+  .opt {
+    text-align: left;
+    background: #10161f;
+    border: 1px solid var(--panel-line);
+    border-radius: 8px;
+    padding: 12px 14px;
+    color: var(--text);
+    font-size: 14.5px;
+    font-family: var(--sans);
+    cursor: pointer;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    transition: border-color 0.15s ease, background 0.15s ease, transform 0.1s ease;
+  }
+  .opt:hover:not(:disabled) {
+    border-color: var(--data);
+    background: #131b26;
+  }
+  .opt:active:not(:disabled) { transform: scale(0.995); }
+  .opt:disabled { cursor: default; }
+
+  .opt .letter {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+    border: 1px solid var(--panel-line);
+    border-radius: 4px;
+    width: 20px;
+    height: 20px;
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 1px;
+  }
+
+  .opt.correct {
+    border-color: var(--ok);
+    background: rgba(87, 199, 133, 0.09);
+  }
+  .opt.correct .letter { border-color: var(--ok); color: var(--ok); }
+
+  .opt.wrong {
+    border-color: var(--bad);
+    background: rgba(226, 100, 90, 0.09);
+  }
+  .opt.wrong .letter { border-color: var(--bad); color: var(--bad); }
+
+  .opt.dim { opacity: 0.45; }
+
+  /* ---------- explanation ---------- */
+  .explain {
+    margin-top: 18px;
+    padding: 14px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--panel-line);
+    background: #10161f;
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: var(--text);
+    display: none;
+  }
+  .explain.show { display: block; }
+  .explain .verdict {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 7px;
+    display: inline-block;
+  }
+  .explain.ok .verdict { color: var(--ok); }
+  .explain.bad .verdict { color: var(--bad); }
+  .explain code {
+    font-family: var(--mono);
+    background: #1e2634;
+    padding: 1px 5px;
+    border-radius: 4px;
+    color: var(--dst);
+    font-size: 0.9em;
+  }
+
+  .next-row { margin-top: 20px; display: flex; justify-content: flex-end; }
+  button.next {
+    font-family: var(--mono);
+    font-size: 13px;
+    background: var(--data);
+    color: #0a0f16;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 7px;
+    cursor: pointer;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    display: none;
+  }
+  button.next.show { display: inline-block; }
+  button.next:hover { filter: brightness(1.08); }
+
+  /* ---------- results ---------- */
+  .results { display: none; text-align: center; padding: 10px 4px; }
+  .results.show { display: block; }
+  .score-big {
+    font-family: var(--mono);
+    font-size: 56px;
+    font-weight: 700;
+    line-height: 1;
+    margin: 10px 0 4px;
+    background: linear-gradient(90deg, var(--src), var(--data));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .score-label { color: var(--muted); font-size: 13px; font-family: var(--mono); letter-spacing: 0.05em; }
+  .score-msg { margin: 22px 0 10px; font-size: 15px; line-height: 1.6; color: var(--text); }
+  .restart {
+    margin-top: 18px;
+    font-family: var(--mono);
+    font-size: 13px;
+    background: transparent;
+    color: var(--data);
+    border: 1px solid var(--panel-line);
+    padding: 10px 18px;
+    border-radius: 7px;
+    cursor: pointer;
+  }
+  .restart:hover { border-color: var(--data); }
+
+  footer.back {
+    margin-top: 30px;
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  @media (max-width: 480px) {
+    .score-big { font-size: 44px; }
+    .frame-strip span { padding: 6px 8px; font-size: 10px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="frame-strip" aria-hidden="true">
+    <span class="a">5555</span>
+    <span class="b">53</span>
+    <span class="c">Length / Checksum</span>
+    <span class="d">Data</span>
+    <span class="e">17</span>
+  </div>
+
+  <header class="title-block">
+    <p class="eyebrow">Lecture 03 — Self-Check</p>
+    <h1>UDP: User Datagram Protocol Quiz</h1>
+    <p class="subtitle">10 questions, medium difficulty — same level as the Lecture 02 quiz. Pick an answer to see whether you're right and why.</p>
+  </header>
+
+  <div class="progress-row">
+    <span id="progressLabel">Question 1 / 10</span>
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    <span id="scoreLabel">Score: 0</span>
+  </div>
+
+  <div class="card" id="quizCard">
+    <div class="q-tag" id="qTag">TOPIC — BIG PICTURE</div>
+    <p class="q-text" id="qText"></p>
+    <div class="options" id="optionsBox"></div>
+    <div class="explain" id="explainBox">
+      <span class="verdict" id="verdictText"></span>
+      <div id="explainText"></div>
+    </div>
+    <div class="next-row">
+      <button class="next" id="nextBtn">Next question →</button>
+    </div>
+  </div>
+
+  <div class="results" id="resultsBox">
+    <div class="score-label">FINAL SCORE</div>
+    <div class="score-big" id="finalScore">0 / 10</div>
+    <p class="score-msg" id="scoreMsg"></p>
+    <button class="restart" id="restartBtn">↺ Retake quiz</button>
+  </div>
+
+  <footer class="back">lec-03 / quiz.html</footer>
+</div>
+
+<script>
+const QUESTIONS = [
+  {
+    tag: "TOPIC — BIG PICTURE",
+    q: "A host has a DNS server, a web server, and a game server all running at the same time on IP <code>10.0.0.2</code>. What mechanism lets an incoming datagram reach the correct one of these three processes?",
+    options: [
+      "The IP header's TTL field, which is set differently per process",
+      "The destination port number in the UDP header",
+      "The order in which the processes were started",
+      "A separate MAC address assigned to each process"
+    ],
+    correct: 1,
+    explain: "IP can only get a packet to the right host — it has no concept of processes. UDP adds a destination port specifically to solve this: the OS reads that port number and hands the datagram to whichever process is bound to it (e.g. port 53 for the DNS server). TTL is unrelated to process delivery, and MAC addresses only ever apply to the whole network interface, not individual processes."
+  },
+  {
+    tag: "TOPIC — HEADER FIELDS",
+    q: "A UDP datagram carries 35 bytes of application data. What value would you expect in its Length field?",
+    options: [
+      "35 bytes — Length only counts the payload",
+      "8 bytes — Length only counts the UDP header",
+      "43 bytes — the UDP header (8 bytes) plus the data (35 bytes)",
+      "20 bytes — Length is fixed regardless of payload size"
+    ],
+    correct: 2,
+    explain: "The UDP Length field reports the size of the entire datagram — header plus data — not just one or the other. An 8-byte header with 35 bytes of data gives Length = 43. This is different from the IP header's Total Length field, which covers the IP header plus everything after it (including this whole UDP datagram)."
+  },
+  {
+    tag: "TOPIC — SOURCE PORT",
+    q: "Why does a UDP datagram need a source port at all, given that UDP doesn't set up a connection first?",
+    options: [
+      "It doesn't — source port is optional and often left blank",
+      "So the receiving OS knows how to route the datagram back to the correct local process when it replies",
+      "So the sender can prove its identity cryptographically",
+      "So intermediate routers can prioritize the traffic"
+    ],
+    correct: 1,
+    explain: "Even without a persistent connection, most UDP exchanges are still request/reply. The source port acts as a return address: the destination process reads it, and sends its reply back with THAT port as the new destination port. Without it, a reply could reach the correct host IP but the OS would have no way to know which local process was actually waiting for it."
+  },
+  {
+    tag: "TOPIC — MULTIPLEXING",
+    q: "Three separate applications on the same host all send UDP traffic out through the same network interface. What is this scenario an example of?",
+    options: [
+      "Demultiplexing",
+      "Fragmentation",
+      "Multiplexing",
+      "Congestion control"
+    ],
+    correct: 2,
+    explain: "Multiplexing is many senders sharing one outgoing path — here, three apps funneling traffic through one IP address and network stack, distinguished from each other by their different source ports. Demultiplexing is the reverse process, sorting one incoming stream back out to the correct processes by destination port. Fragmentation and congestion control are unrelated IP/TCP concepts."
+  },
+  {
+    tag: "TOPIC — RELIABILITY TRADE-OFFS",
+    q: "An application sends three UDP datagrams in order: 1, 2, 3. The receiver ends up processing them as 2, 3, 1. What does UDP do about this?",
+    options: [
+      "UDP automatically buffers and reorders them before delivery",
+      "UDP retransmits datagram 1 so it arrives sooner next time",
+      "Nothing — UDP provides no ordering guarantee, so the application must handle this itself if it matters",
+      "UDP drops all three datagrams since order was violated"
+    ],
+    correct: 2,
+    explain: "UDP makes no ordering guarantee at all — datagrams are independent, and the network can deliver them in any order (or not at all). If an application actually cares about order, it has to implement that logic itself (e.g. by adding its own sequence numbers), or use a protocol like TCP that handles ordering natively."
+  },
+  {
+    tag: "TOPIC — CHECKSUM",
+    q: "A UDP datagram arrives with a checksum that doesn't match its contents. What does UDP do?",
+    options: [
+      "Automatically requests retransmission of the corrupted datagram",
+      "Repairs the corrupted bits using the checksum",
+      "Detects the corruption and the datagram is typically discarded — no repair or retransmission happens",
+      "Ignores the checksum entirely since it's optional in IPv4"
+    ],
+    correct: 2,
+    explain: "The checksum only allows the receiver to detect that something was corrupted in transit — it carries no information that would allow the data to be reconstructed or repaired. UDP has no retransmission mechanism of its own, so a corrupted datagram simply gets discarded; if reliable delivery matters, that has to come from a layer above UDP (or from choosing TCP instead)."
+  },
+  {
+    tag: "TOPIC — USE CASES",
+    q: "A live video call is choosing between TCP and UDP for its media stream. Which reasoning best justifies picking UDP?",
+    options: [
+      "UDP guarantees every frame arrives, which is essential for video quality",
+      "UDP has a larger header, giving more room for video metadata",
+      "If a frame is lost, retransmitting it late is often less useful than simply skipping it and moving on — latency matters more than perfect delivery",
+      "TCP cannot be used for any real-time application under any circumstances"
+    ],
+    correct: 2,
+    explain: "Real-time media favors UDP specifically because a late frame is often worse than a missing one — by the time a retransmission would arrive, playback has already moved past that point. UDP's small header and lack of built-in guarantees are a feature here, not a limitation, since the priority is minimizing latency rather than guaranteeing every byte arrives."
+  },
+  {
+    tag: "TOPIC — PACKET CAPTURE",
+    q: "In a tcpdump capture of a DNS exchange, you see: <code>192.168.254.144.58635 &gt; 8.8.8.8.53: 39920+ A? example.com.</code> What does 39920 represent?",
+    options: [
+      "The UDP source port",
+      "The DNS query ID, a separate identifier used at the application layer, not the transport layer",
+      "The TTL value at the time of capture",
+      "The UDP checksum value"
+    ],
+    correct: 1,
+    explain: "58635 is the UDP source port (transport layer); 39920 is the DNS query ID (application layer) — a value DNS uses on its own to match each response to its corresponding request. They live in different protocols entirely and are easy to confuse at a glance since they're both just numbers sitting next to each other in the capture output."
+  },
+  {
+    tag: "TOPIC — LAYERING",
+    q: "In an IP packet capture, you notice the line includes <code>proto UDP (17)</code>. What does this actually refer to?",
+    options: [
+      "The UDP header's own internal protocol field",
+      "The IP header's Protocol field, indicating the payload inside this IP packet is a UDP datagram",
+      "The DNS protocol version being used",
+      "The number of UDP datagrams sent so far in this session"
+    ],
+    correct: 1,
+    explain: "This is the IP header's Protocol field from Lecture 02, not anything UDP defines itself. The value 17 specifically means \"the data inside this IP packet is a UDP datagram\" (as opposed to 6 for TCP or 1 for ICMP) — it's what tells the receiving host's IP stack to hand the payload up to the UDP layer for further processing."
+  },
+  {
+    tag: "TOPIC — END-TO-END SCENARIO",
+    q: "A client sends a UDP request from port 61000 to a DNS server on port 53. The DNS server's reply arrives at the client with Source Port = 61000 and Destination Port = 53. What's wrong with this picture?",
+    options: [
+      "Nothing — this is exactly how a normal DNS reply should look",
+      "The ports are backwards: the reply's source should be 53 (the server) and its destination should be 61000 (the client)",
+      "UDP replies never include port numbers at all",
+      "The reply should use a completely new random port unrelated to the original request"
+    ],
+    correct: 1,
+    explain: "On every request/reply exchange, the ports flip: the original destination port (53, the DNS server) becomes the new source port on the reply, and the original source port (61000, the client) becomes the new destination port, so the OS can deliver the reply back to the exact process that made the request. A reply that kept Source Port = 61000 and Destination Port = 53 would actually be indistinguishable from another outgoing request — not a valid reply at all."
+  }
+];
+
+let current = 0;
+let score = 0;
+let answered = false;
+
+const qTag = document.getElementById('qTag');
+const qText = document.getElementById('qText');
+const optionsBox = document.getElementById('optionsBox');
+const explainBox = document.getElementById('explainBox');
+const verdictText = document.getElementById('verdictText');
+const explainText = document.getElementById('explainText');
+const nextBtn = document.getElementById('nextBtn');
+const progressFill = document.getElementById('progressFill');
+const progressLabel = document.getElementById('progressLabel');
+const scoreLabel = document.getElementById('scoreLabel');
+const quizCard = document.getElementById('quizCard');
+const resultsBox = document.getElementById('resultsBox');
+const finalScore = document.getElementById('finalScore');
+const scoreMsg = document.getElementById('scoreMsg');
+const restartBtn = document.getElementById('restartBtn');
+
+const LETTERS = ['A', 'B', 'C', 'D'];
+
+function renderQuestion() {
+  answered = false;
+  const item = QUESTIONS[current];
+  qTag.textContent = item.tag;
+  qText.innerHTML = item.q;
+  optionsBox.innerHTML = '';
+  explainBox.classList.remove('show', 'ok', 'bad');
+  nextBtn.classList.remove('show');
+
+  item.options.forEach((opt, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'opt';
+    btn.innerHTML = `<span class="letter">${LETTERS[i]}</span><span>${opt}</span>`;
+    btn.addEventListener('click', () => selectOption(i, btn));
+    optionsBox.appendChild(btn);
+  });
+
+  progressLabel.textContent = `Question ${current + 1} / ${QUESTIONS.length}`;
+  progressFill.style.width = `${(current / QUESTIONS.length) * 100}%`;
+  scoreLabel.textContent = `Score: ${score}`;
+}
+
+function selectOption(i, btnEl) {
+  if (answered) return;
+  answered = true;
+  const item = QUESTIONS[current];
+  const allOpts = optionsBox.querySelectorAll('.opt');
+
+  allOpts.forEach((el, idx) => {
+    el.disabled = true;
+    if (idx === item.correct) el.classList.add('correct');
+    else if (idx === i) el.classList.add('wrong');
+    else el.classList.add('dim');
+  });
+
+  const isCorrect = i === item.correct;
+  if (isCorrect) score++;
+
+  explainBox.classList.add('show', isCorrect ? 'ok' : 'bad');
+  verdictText.textContent = isCorrect ? '✓ Correct' : '✗ Not quite';
+  explainText.innerHTML = item.explain;
+
+  scoreLabel.textContent = `Score: ${score}`;
+  nextBtn.classList.add('show');
+  nextBtn.textContent = current === QUESTIONS.length - 1 ? 'See results →' : 'Next question →';
+}
+
+nextBtn.addEventListener('click', () => {
+  current++;
+  if (current >= QUESTIONS.length) {
+    showResults();
+  } else {
+    renderQuestion();
+  }
+});
+
+function showResults() {
+  quizCard.style.display = 'none';
+  resultsBox.classList.add('show');
+  progressFill.style.width = '100%';
+  progressLabel.textContent = `Question ${QUESTIONS.length} / ${QUESTIONS.length}`;
+  finalScore.textContent = `${score} / ${QUESTIONS.length}`;
+
+  let msg;
+  if (score === QUESTIONS.length) {
+    msg = "Clean sweep — ports, multiplexing, the datagram header, and the reliability trade-offs all landed. UDP is solid ground for you.";
+  } else if (score >= QUESTIONS.length * 0.7) {
+    msg = "Strong grasp overall. Revisit whichever explanation above didn't feel obvious before moving to TCP next.";
+  } else if (score >= QUESTIONS.length * 0.4) {
+    msg = "Decent start, but a few core mechanics (port flipping, Length vs header size, or what the checksum actually does) are still shaky — worth a re-read of Parts 2–3.";
+  } else {
+    msg = "This one needs another pass. Go back through the analogies in Parts 1–3 before moving on — the mental model matters more than any single fact here.";
+  }
+  scoreMsg.textContent = msg;
+}
+
+restartBtn.addEventListener('click', () => {
+  current = 0;
+  score = 0;
+  resultsBox.classList.remove('show');
+  quizCard.style.display = 'block';
+  renderQuestion();
+});
+
+renderQuestion();
+</script>
+</body>
+</html>
