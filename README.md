@@ -1,114 +1,31 @@
+![Fundamentals of Network Engineering for Effective Backends](./lec%201/imgs/Main.png)
+
 # Network Engineering Fundamentals
-### A Backend Developer's Guide to How the Internet Actually Works
 
-> **One question drives everything in this repo:**
-> *What really happens when one computer talks to another computer?*
+A zero-to-backend roadmap for understanding how computers actually communicate — from IP, DNS, and TCP/UDP all the way to TLS, proxies, load balancers, Docker networking, and reading real Wireshark packet captures.
 
----
+**One question drives the whole repo:** what really happens when one computer talks to another?
 
-## Who this is for
+Every lecture builds on the last, going from bare networking concepts to real backend behavior: sockets, connection pooling, TLS handshakes, database traffic, and Docker network internals. Each folder has its own `README.md` with diagrams, commands, and hands-on labs.
 
-You're learning backend development. You can write an API. But when something breaks — a timeout, a connection refused, a slow response — you don't know where to look. This repo fixes that.
+## Credit
 
-Networking is not optional for backend devs. Your code runs inside a network. Understanding that network is what separates a developer who guesses from one who debugs.
+The concepts in this repository were learned from Hussein Nasser's Udemy course, [Fundamentals of Networking for Effective Backend Design](https://www.udemy.com/course/fundamentals-of-networking-for-effective-backend-design/).
 
----
+Certificate of completion:
 
-## The Big Picture
+![Certificate of Completion](./lec%201/imgs/certificate.jpg)
 
-Everything in this repo explains this one scenario:
+## Lectures
 
-```
-You type: https://google.com
-```
-
-What actually happens?
-
-```
-1. Your browser asks DNS: "What's the IP for google.com?"
-2. DNS replies: "142.250.200.14"
-3. Your browser opens a TCP connection to 142.250.200.14:443
-4. Your browser sends an HTTPS (HTTP over TLS) request
-5. Google's server sends back an HTTP response
-6. Your browser renders the page
-```
-
-That's DNS → IP → TCP → HTTP → response. These are the layers. This repo teaches all of them.
-
----
-
-## Why Backend Developers Need This
-
-```
-User (Browser / Mobile App)
-         │
-         ▼
-     Internet
-         │
-         ▼
-  Your Backend App   ◄── You live here
-         │
-         ▼
-  Database / Services
-```
-
-Your backend app doesn't live in isolation. Every request that reaches it, and every response you send back, travels through a network. To debug production issues, you need to understand what's happening at each step.
-
----
-
-## Concept Map
-
-```
-DNS          → converts domain names to IP addresses
-IP Address   → identifies a machine on the network
-Port         → identifies a specific app inside a machine
-Packet       → small chunk of data sent across the network
-Router       → forwards packets toward their destination
-Protocol     → agreed rules for how machines communicate
-TCP          → reliable, ordered delivery
-UDP          → fast delivery, no guarantees
-HTTP         → the language of web requests and responses
-TLS/HTTPS    → encrypted HTTP
-NAT          → many private devices sharing one public IP
-```
-
----
-
-## Repo Structure
-
-```
-network-engineering-fundamentals/
-│
-├── README.md                        ← You are here
-│
-├── lec-00/
-│   └── README.md                    ← Start here: Internet fundamentals
-│
-├── lec-01/
-│   └── README.md                    ← Coming soon
-│
-├── labs/
-│   ├── 01-basic-commands.md
-│   ├── 02-wireshark-walkthrough.md
-│   └── 03-build-tcp-echo-server.md
-│
-└── assets/
-    └── diagrams/
-```
-
----
-
-## How to Use This Repo
-
-Study in order. Each lecture builds on the previous one.
-
-Start with **lec-00** — it gives you the mental model everything else depends on.
-
-> Networking is a system, not a list of definitions.
-> Keep one picture in your head:
->
-> ```
-> Client sends data → Network carries it → Server receives and responds
-> ```
->
-> Everything else explains *how* that happens reliably, at scale, across the planet.
+| # | Lecture | Covers |
+|---|---|---|
+| [00](./lec%200%20-%20intro/README.md) | Internet Fundamentals | Client/server, IP, ports, DNS, packets, routers, NAT — the big picture before the details |
+| [01](./lec%201/README.md) | Fundamentals of Networking | OSI/TCP-IP layers, encapsulation, switches, routers, proxies, load balancers |
+| [02](./lec%202%20-%20IP/README.md) | IP, Packets, ICMP, ARP & Routing | Subnetting, gateways, packet headers, TTL, ARP, routing decisions |
+| [03](./lec%203%20-%20UDP/README.md) | UDP | Ports, datagrams, multiplexing, UDP servers in Node.js and C |
+| [04](./lec%204%20-%20TCP/README.md) | TCP | Handshake, sequence/ACK, retransmission, sockets, TCP server states and queues |
+| [05](./lec%205%20-%20protocols/README.md) | DNS, TLS & HTTPS | DNS hierarchy, certificates, TLS 1.2/1.3, HTTPS labs with OpenSSL |
+| [06](./lec%206%20-%20Network%20Performance/README.md) | Backend Network Performance | Latency sources, connection pooling, Nagle/delayed ACK, service mesh, load balancing |
+| [07](./lec%207%20-%20Routing%26Docker/README.md) | Routing & Docker Networking | Routing tables, longest-prefix match, Docker bridges and internal DNS |
+| [08](./lec%208%20-%20WireSharking/README.md) | Wireshark for Backend Engineers | Capture/display filters, TLS decryption, HTTP/2, MongoDB wire traffic |
